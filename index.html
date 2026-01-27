@@ -1,0 +1,1588 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fold</title>
+  <style>
+    :root {
+      --paper: #f7f5f2;
+      --ink: #111111;
+      --muted: #6d6a65;
+      --line: #cfcac2;
+      --accent: #1f1f1f;
+      --bg1: #f9f7f3;
+      --bg2: #efeae2;
+      --shadow: rgba(0, 0, 0, 0.08);
+      --success: #2f7d5d;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background: linear-gradient(180deg, #f4f1ec 0%, #f4f1ec 120px, var(--bg2) 120px, var(--bg1) 100%);
+      font-family: "Avenir Next", "Trebuchet MS", "Gill Sans", "Calibri", sans-serif;
+    }
+
+    .page {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 24px 48px;
+      display: grid;
+      gap: 28px;
+      grid-template-columns: 1fr;
+      animation: fadeUp 500ms ease-out;
+    }
+
+    .masthead {
+      display: grid;
+      gap: 8px;
+    }
+
+    .nyt-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 18px;
+      font-family: "Georgia", "Times New Roman", serif;
+      letter-spacing: 0.02em;
+    }
+
+    .nyt-mark {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .title {
+      font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif;
+      font-size: 40px;
+      letter-spacing: 0.04em;
+      margin: 0;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin: 0;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.22em;
+    }
+
+    .panel {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 14px 24px var(--shadow);
+      padding: 20px;
+    }
+
+    .layout {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: 1fr;
+      align-items: start;
+      justify-items: center;
+    }
+
+    .game-panel {
+      display: grid;
+      gap: 14px;
+      width: min(560px, 100%);
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .difficulty {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .difficulty button {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      padding: 8px 12px;
+    }
+
+    .difficulty button.active {
+      background: var(--ink);
+      color: #fff;
+      border-color: var(--ink);
+    }
+
+    button {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--ink);
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, border 120ms ease;
+    }
+
+    button:hover { transform: translateY(-1px); box-shadow: 0 8px 16px var(--shadow); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+
+    .status {
+      display: grid;
+      gap: 6px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .status strong { color: var(--ink); }
+
+    .board-wrap {
+      display: grid;
+      gap: 12px;
+      justify-items: center;
+    }
+
+    .board-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+    }
+
+    svg {
+      width: 100%;
+      max-width: 420px;
+      height: auto;
+      border-radius: 16px;
+      background: #fbfaf8;
+      border: 1px solid var(--line);
+    }
+
+    .dot { transition: cx 240ms ease, cy 240ms ease, r 240ms ease, opacity 200ms ease; }
+    .dot.current { fill: var(--ink); }
+    .dot.stack { fill: var(--ink); }
+    .dot.ghost { fill: var(--muted); opacity: 0.4; }
+    .dot.target { fill: none; stroke: var(--muted); stroke-width: 1.8; opacity: 0.55; }
+
+    .crease-hit {
+      stroke: transparent;
+      stroke-width: 16;
+      cursor: pointer;
+    }
+
+    .crease-line {
+      stroke: var(--line);
+      stroke-width: 1.2;
+      stroke-dasharray: 4 6;
+    }
+
+    .crease-active { stroke: var(--ink); stroke-width: 2; stroke-dasharray: 0; }
+
+    .direction-panel {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .direction-panel button {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 12px 16px;
+      border-width: 1.6px;
+      background: linear-gradient(180deg, #ffffff, #f6f2eb);
+      box-shadow: 0 10px 18px rgba(23, 22, 20, 0.08);
+    }
+
+    .rule-card {
+      display: grid;
+      gap: 12px;
+      font-size: 14px;
+      color: var(--muted);
+      width: min(560px, 100%);
+    }
+
+    .solution {
+      display: grid;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .solution-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      cursor: pointer;
+      user-select: none;
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .solution-toggle span {
+      font-weight: 500;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .solution-content {
+      display: none;
+      gap: 8px;
+    }
+
+    .solution-content.show {
+      display: grid;
+    }
+
+    .solution-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .solution-actions button {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      padding: 8px 12px;
+    }
+
+    .solution ol {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .solution-step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .solution-step.active {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .solution-step.active svg {
+      border-color: var(--ink);
+      box-shadow: 0 8px 16px var(--shadow);
+    }
+
+    .solution-step svg {
+      width: 44px;
+      height: 44px;
+      background: #fdfcf9;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      flex: 0 0 auto;
+    }
+
+    .solution-step line {
+      stroke: var(--ink);
+      stroke-width: 2;
+    }
+
+    .solution-step .arrow {
+      stroke: var(--ink);
+      stroke-width: 2;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .rule-card strong { color: var(--ink); }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 10, 10, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 20;
+    }
+
+    .modal.show { display: flex; }
+
+    .modal-card {
+      background: var(--paper);
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 520px;
+      width: 100%;
+      border: 1px solid var(--line);
+      box-shadow: 0 20px 36px var(--shadow);
+      display: grid;
+      gap: 16px;
+    }
+
+    .celebrate {
+      text-align: center;
+      gap: 12px;
+    }
+
+    .confetti {
+      display: grid;
+      place-items: center;
+      height: 64px;
+      position: relative;
+    }
+
+    .confetti span {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      animation: confetti 1.4s ease-out infinite;
+      opacity: 0.9;
+    }
+
+    .confetti span:nth-child(1) { background: #ffcf33; left: 20%; animation-delay: 0s; }
+    .confetti span:nth-child(2) { background: #7fc7a3; left: 40%; animation-delay: 0.1s; }
+    .confetti span:nth-child(3) { background: #7aa6ff; left: 60%; animation-delay: 0.2s; }
+    .confetti span:nth-child(4) { background: #ff9b79; left: 80%; animation-delay: 0.3s; }
+
+    @keyframes confetti {
+      0% { transform: translateY(20px) rotate(0deg); opacity: 0; }
+      30% { opacity: 1; }
+      100% { transform: translateY(-30px) rotate(160deg); opacity: 0; }
+    }
+
+    .modal-card h2 {
+      font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif;
+      margin: 0;
+    }
+
+    .modal-card ul {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--muted);
+      display: grid;
+      gap: 4px;
+    }
+
+    .demo {
+      display: grid;
+      gap: 10px;
+    }
+
+    .demo svg {
+      max-width: 320px;
+      background: #fdfcf9;
+    }
+
+    .demo-crease {
+      stroke: var(--line);
+      stroke-width: 2;
+    }
+
+    .demo-dot {
+      fill: var(--ink);
+      animation: foldDotA 3.2s ease-in-out infinite;
+      transform-origin: 50% 50%;
+    }
+
+    .demo-dot.alt {
+      animation: foldDotB 3.2s ease-in-out infinite;
+      animation-delay: 0.2s;
+    }
+
+    .demo-ghost {
+      fill: none;
+      stroke: var(--muted);
+      stroke-width: 1.4;
+      opacity: 0.5;
+      animation: ghostPulse 3.2s ease-in-out infinite;
+    }
+
+    @keyframes foldDotA {
+      0%, 30% { transform: translate(0, 0); }
+      55%, 85% { transform: translate(0, 80px); }
+      100% { transform: translate(0, 0); }
+    }
+
+    @keyframes foldDotB {
+      0%, 30% { transform: translate(0, 0); }
+      55%, 85% { transform: translate(0, 60px); }
+      100% { transform: translate(0, 0); }
+    }
+
+    @keyframes ghostPulse {
+      0%, 40% { opacity: 0.2; }
+      55%, 80% { opacity: 0.6; }
+      100% { opacity: 0.2; }
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .win {
+      color: var(--success);
+      font-weight: 600;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 720px) {
+      header { align-items: flex-start; }
+      .title { font-size: 34px; }
+      svg { max-width: 360px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="masthead">
+      <div class="nyt-bar">
+        <span class="nyt-mark">T</span>
+        <span>Games</span>
+      </div>
+    </div>
+    <header>
+      <div>
+        <h1 class="title">Fold</h1>
+        <p class="subtitle">Above and below the centerfold</p>
+      </div>
+      <div class="controls">
+        <div class="difficulty" aria-label="Difficulty">
+          <button id="easyBtn" class="active">Easy</button>
+          <button id="mediumBtn">Medium</button>
+          <button id="hardBtn">Hard</button>
+        </div>
+        <button id="resetBtn">Reset</button>
+        <button id="undoBtn">Undo</button>
+        <button id="rulesBtn">Rules</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <section class="panel game-panel">
+        <div class="status">
+          <div><strong>Puzzle:</strong> <span id="puzzleTitle">-</span></div>
+          <div><strong>Goal:</strong> Match the target constellation.</div>
+          <div><strong>Par:</strong> <span id="par">-</span> folds</div>
+          <div><strong>Moves:</strong> <span id="moves">0</span> <span id="winText"></span></div>
+        </div>
+
+        <div class="board-wrap">
+          <div class="board-title">Your Fold</div>
+          <svg id="board" viewBox="0 0 420 420" aria-label="Fold board"></svg>
+        </div>
+
+        <div class="direction-panel panel" id="directionPanel" style="display:none;">
+          <button id="dirA"></button>
+          <button id="dirB"></button>
+        </div>
+        <div class="solution panel">
+          <div class="solution-toggle" id="solutionToggle">
+            Solution
+            <span id="solutionHint">Tap to show</span>
+          </div>
+          <div class="solution-content" id="solutionContent">
+            <div class="solution-actions">
+              <button id="stepSolutionBtn">Next step</button>
+              <button id="playSolutionBtn">Auto play</button>
+            </div>
+            <ol id="solutionList"></ol>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="rule-card">
+          <strong>How it works</strong>
+          <div>Select a crease line. Choose a fold direction. Dots reflect across the crease.</div>
+          <div>Stacked dots merge visually but still count.</div>
+          <div>To unstack, fold the same crease back in the opposite direction.</div>
+          <div>Arrow keys fold from the selected crease (or the center crease).</div>
+          <div>Larger dots mean two dots stacked (double targets are larger rings).</div>
+          <div>Match every target dot to win.</div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="modal" id="rulesModal" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <h2>How to play</h2>
+      <ul>
+        <li>Click a crease line on the board and choose a direction.</li>
+        <li>Dots reflect across the crease and can stack.</li>
+        <li>Larger dots indicate a double (two dots stacked on one spot).</li>
+        <li>Match the target constellation in as few folds as possible.</li>
+      </ul>
+      <div class="demo">
+        <div><strong>Example fold</strong></div>
+        <svg viewBox="0 0 200 200" aria-hidden="true">
+          <rect x="20" y="20" width="160" height="160" fill="none" stroke="var(--line)" stroke-width="1.2" />
+          <line class="demo-crease" x1="20" y1="100" x2="180" y2="100" />
+          <circle class="demo-dot" cx="70" cy="60" r="6" />
+          <circle class="demo-dot alt" cx="130" cy="70" r="10" />
+          <circle class="demo-ghost" cx="70" cy="140" r="6" />
+          <circle class="demo-ghost" cx="130" cy="130" r="10" />
+        </svg>
+      </div>
+      <div class="modal-actions">
+        <label class="toggle">
+          <input type="checkbox" id="hideRules" />
+          Don’t show again
+        </label>
+        <button id="startBtn">Start playing</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="winModal" role="dialog" aria-modal="true">
+    <div class="modal-card celebrate">
+      <div class="confetti" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <h2>Nice fold.</h2>
+      <div>You matched the constellation.</div>
+      <div class="modal-actions">
+        <button id="closeWinBtn">Keep folding</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SIZE = 6;
+    const CELL = 420 / SIZE;
+    const board = document.getElementById("board");
+    const parEl = document.getElementById("par");
+    const movesEl = document.getElementById("moves");
+    const winText = document.getElementById("winText");
+    const puzzleTitleEl = document.getElementById("puzzleTitle");
+    const solutionList = document.getElementById("solutionList");
+    const solutionToggle = document.getElementById("solutionToggle");
+    const solutionContent = document.getElementById("solutionContent");
+    const solutionHint = document.getElementById("solutionHint");
+    const stepSolutionBtn = document.getElementById("stepSolutionBtn");
+    const playSolutionBtn = document.getElementById("playSolutionBtn");
+    const directionPanel = document.getElementById("directionPanel");
+    const dirA = document.getElementById("dirA");
+    const dirB = document.getElementById("dirB");
+
+    const resetBtn = document.getElementById("resetBtn");
+    const undoBtn = document.getElementById("undoBtn");
+    const rulesBtn = document.getElementById("rulesBtn");
+    const easyBtn = document.getElementById("easyBtn");
+    const mediumBtn = document.getElementById("mediumBtn");
+    const hardBtn = document.getElementById("hardBtn");
+
+    const rulesModal = document.getElementById("rulesModal");
+    const winModal = document.getElementById("winModal");
+    const startBtn = document.getElementById("startBtn");
+    const hideRules = document.getElementById("hideRules");
+    const closeWinBtn = document.getElementById("closeWinBtn");
+
+    let state = null;
+    let history = [];
+    let selectedCrease = null;
+    let previewPoints = null;
+    let difficulty = "easy";
+    let winShown = false;
+    let solutionOpen = false;
+    let isPlayback = false;
+    let playbackTimer = null;
+    let playbackIndex = 0;
+    let playbackSnapshot = null;
+    let solutionItems = [];
+    let playbackCrease = null;
+
+    function coordKey(p) {
+      return `${p.x},${p.y}`;
+    }
+
+    function countPoints(points) {
+      const map = new Map();
+      points.forEach((p) => {
+        const key = coordKey(p);
+        map.set(key, (map.get(key) || 0) + 1);
+      });
+      return map;
+    }
+
+    function pointsEqual(a, b) {
+      if (a.size !== b.size) return false;
+      for (const [key, value] of a.entries()) {
+        if (b.get(key) !== value) return false;
+      }
+      return true;
+    }
+
+    function reflectPoint(p, crease) {
+      if (crease.type === "h") {
+        if (crease.dir === "down" && p.y <= crease.k) {
+          return { x: p.x, y: 2 * crease.k + 1 - p.y };
+        }
+        if (crease.dir === "up" && p.y >= crease.k + 1) {
+          return { x: p.x, y: 2 * crease.k + 1 - p.y };
+        }
+        return p;
+      }
+
+      if (crease.dir === "right" && p.x <= crease.k) {
+        return { x: 2 * crease.k + 1 - p.x, y: p.y };
+      }
+      if (crease.dir === "left" && p.x >= crease.k + 1) {
+        return { x: 2 * crease.k + 1 - p.x, y: p.y };
+      }
+      return p;
+    }
+
+    function applyFold(points, crease) {
+      return points.map((p) => reflectPoint(p, crease));
+    }
+
+    function foldValid(points, crease) {
+      const next = applyFold(points, crease);
+      return next.every((p) => p.x >= 1 && p.x <= SIZE && p.y >= 1 && p.y <= SIZE);
+    }
+
+    function renderGrid(svg, cell, viewSize) {
+      svg.innerHTML = "";
+      const grid = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      for (let i = 1; i < SIZE; i += 1) {
+        const lineH = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        lineH.setAttribute("x1", 0);
+        lineH.setAttribute("x2", viewSize);
+        lineH.setAttribute("y1", i * cell);
+        lineH.setAttribute("y2", i * cell);
+        lineH.setAttribute("stroke", "var(--line)");
+        lineH.setAttribute("stroke-width", "1");
+        grid.appendChild(lineH);
+
+        const lineV = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        lineV.setAttribute("y1", 0);
+        lineV.setAttribute("y2", viewSize);
+        lineV.setAttribute("x1", i * cell);
+        lineV.setAttribute("x2", i * cell);
+        lineV.setAttribute("stroke", "var(--line)");
+        lineV.setAttribute("stroke-width", "1");
+        grid.appendChild(lineV);
+      }
+      svg.appendChild(grid);
+    }
+
+    function renderCreases() {
+      for (let k = 1; k < SIZE; k += 1) {
+        const y = k * CELL;
+        const crease = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        crease.setAttribute("x1", 0);
+        crease.setAttribute("x2", 420);
+        crease.setAttribute("y1", y);
+        crease.setAttribute("y2", y);
+        crease.setAttribute("class", "crease-line");
+        crease.dataset.type = "h";
+        crease.dataset.k = String(k);
+        board.appendChild(crease);
+
+        const hit = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        hit.setAttribute("x1", 0);
+        hit.setAttribute("x2", 420);
+        hit.setAttribute("y1", y);
+        hit.setAttribute("y2", y);
+        hit.setAttribute("class", "crease-hit");
+        hit.dataset.type = "h";
+        hit.dataset.k = String(k);
+        board.appendChild(hit);
+      }
+
+      for (let k = 1; k < SIZE; k += 1) {
+        const x = k * CELL;
+        const crease = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        crease.setAttribute("y1", 0);
+        crease.setAttribute("y2", 420);
+        crease.setAttribute("x1", x);
+        crease.setAttribute("x2", x);
+        crease.setAttribute("class", "crease-line");
+        crease.dataset.type = "v";
+        crease.dataset.k = String(k);
+        board.appendChild(crease);
+
+        const hit = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        hit.setAttribute("y1", 0);
+        hit.setAttribute("y2", 420);
+        hit.setAttribute("x1", x);
+        hit.setAttribute("x2", x);
+        hit.setAttribute("class", "crease-hit");
+        hit.dataset.type = "v";
+        hit.dataset.k = String(k);
+        board.appendChild(hit);
+      }
+    }
+
+    function renderPoints(svg, points, cell, className, radiusBase = 8, stackStep = 4) {
+      const counts = countPoints(points);
+      counts.forEach((count, key) => {
+        const [x, y] = key.split(",").map(Number);
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", (x - 1) * cell + cell / 2);
+        circle.setAttribute("cy", (y - 1) * cell + cell / 2);
+        circle.setAttribute("r", radiusBase + (count - 1) * stackStep);
+        circle.setAttribute("class", `dot ${className}`);
+        svg.appendChild(circle);
+      });
+    }
+
+    function renderBoard() {
+      renderGrid(board, CELL, 420);
+      renderCreases();
+      renderPoints(board, state.target, CELL, "target", 10, 4);
+      renderPoints(board, state.points, CELL, "current", 8, 4);
+      if (previewPoints) {
+        renderPoints(board, previewPoints, CELL, "ghost", 7, 4);
+      }
+
+      const activeCrease = playbackCrease || selectedCrease;
+      if (activeCrease) {
+        const creases = board.querySelectorAll(".crease-line");
+        creases.forEach((line) => {
+          if (line.dataset.type === activeCrease.type && Number(line.dataset.k) === activeCrease.k) {
+            line.classList.add("crease-active");
+          }
+        });
+      }
+    }
+
+    function updateStatus() {
+      movesEl.textContent = state.moves;
+      const match = pointsEqual(countPoints(state.points), countPoints(state.target));
+      winText.textContent = match ? "· Solved" : "";
+      winText.className = match ? "win" : "";
+      if (match && !winShown && !isPlayback) {
+        winShown = true;
+        openWin();
+      }
+    }
+
+    function showDirections(crease) {
+      selectedCrease = crease;
+      const options = [];
+      if (crease.type === "h") {
+        options.push({ label: "Fold top ↓", dir: "down" });
+        options.push({ label: "Fold bottom ↑", dir: "up" });
+      } else {
+        options.push({ label: "Fold left →", dir: "right" });
+        options.push({ label: "Fold right ←", dir: "left" });
+      }
+
+      const buttons = [dirA, dirB];
+      buttons.forEach((btn, i) => {
+        const option = options[i];
+        const testCrease = { ...crease, dir: option.dir };
+        const valid = foldValid(state.points, testCrease);
+        btn.textContent = option.label;
+        btn.disabled = !valid;
+        btn.onmouseenter = () => {
+          if (!valid) return;
+          previewPoints = applyFold(state.points, testCrease);
+          renderBoard();
+        };
+        btn.onmouseleave = () => {
+          previewPoints = null;
+          renderBoard();
+        };
+        btn.onclick = () => {
+          if (!valid) return;
+          commitFold(testCrease);
+        };
+      });
+
+      directionPanel.style.display = "grid";
+      renderBoard();
+    }
+
+    function defaultCreaseForDir(dir) {
+      const center = Math.floor(SIZE / 2);
+      if (dir === "up" || dir === "down") {
+        return { type: "h", k: center };
+      }
+      return { type: "v", k: center };
+    }
+
+    function handleArrowFold(dir) {
+      if (isPlayback) return;
+      const axisMatch =
+        selectedCrease &&
+        ((selectedCrease.type === "h" && (dir === "up" || dir === "down")) ||
+          (selectedCrease.type === "v" && (dir === "left" || dir === "right")));
+      const crease = axisMatch ? selectedCrease : defaultCreaseForDir(dir);
+      const candidate = { ...crease, dir };
+      if (!foldValid(state.points, candidate)) return;
+      commitFold(candidate);
+    }
+
+    function commitFold(crease) {
+      history.push({ points: state.points.map((p) => ({ ...p })), moves: state.moves });
+      state.points = applyFold(state.points, crease);
+      state.moves += 1;
+      previewPoints = null;
+      directionPanel.style.display = "none";
+      selectedCrease = null;
+      renderBoard();
+      updateStatus();
+    }
+
+    function resetPuzzle() {
+      state.points = state.start.map((p) => ({ ...p }));
+      state.moves = 0;
+      history = [];
+      selectedCrease = null;
+      previewPoints = null;
+      directionPanel.style.display = "none";
+      renderBoard();
+      updateStatus();
+    }
+
+    function undoMove() {
+      const prev = history.pop();
+      if (!prev) return;
+      state.points = prev.points;
+      state.moves = prev.moves;
+      renderBoard();
+      updateStatus();
+    }
+
+    function getDateKeyPST() {
+      const fmt = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Los_Angeles",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      });
+      return fmt.format(new Date());
+    }
+
+    function hashStringToSeed(str) {
+      let hash = 2166136261;
+      for (let i = 0; i < str.length; i += 1) {
+        hash ^= str.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+      }
+      return hash >>> 0;
+    }
+
+    function mulberry32(seed) {
+      return function () {
+        let t = (seed += 0x6d2b79f5);
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function randomInt(rng, min, max) {
+      return Math.floor(rng() * (max - min + 1)) + min;
+    }
+
+    function randomChoice(rng, items) {
+      return items[randomInt(rng, 0, items.length - 1)];
+    }
+
+    function pointsKey(points) {
+      return points
+        .map((p) => `${p.x},${p.y}`)
+        .sort()
+        .join("|");
+    }
+
+    function distinctCount(points) {
+      return new Set(points.map((p) => `${p.x},${p.y}`)).size;
+    }
+
+    function reflectPointForGen(p, crease) {
+      if (crease.type === "h") {
+        if (crease.dir === "down" && p.y <= crease.k) {
+          return { x: p.x, y: 2 * crease.k + 1 - p.y };
+        }
+        if (crease.dir === "up" && p.y >= crease.k + 1) {
+          return { x: p.x, y: 2 * crease.k + 1 - p.y };
+        }
+        return p;
+      }
+
+      if (crease.dir === "right" && p.x <= crease.k) {
+        return { x: 2 * crease.k + 1 - p.x, y: p.y };
+      }
+      if (crease.dir === "left" && p.x >= crease.k + 1) {
+        return { x: 2 * crease.k + 1 - p.x, y: p.y };
+      }
+      return p;
+    }
+
+    function applyFoldForGen(points, crease) {
+      let moved = false;
+      const next = points.map((p) => {
+        const rp = reflectPointForGen(p, crease);
+        if (rp.x !== p.x || rp.y !== p.y) moved = true;
+        if (rp.x < 1 || rp.x > SIZE || rp.y < 1 || rp.y > SIZE) return null;
+        return rp;
+      });
+      if (!moved) return null;
+      if (next.some((p) => p === null)) return null;
+      return next;
+    }
+
+    function allFolds() {
+      const folds = [];
+      for (let k = 1; k < SIZE; k += 1) {
+        folds.push({ type: "h", k, dir: "down" });
+        folds.push({ type: "h", k, dir: "up" });
+        folds.push({ type: "v", k, dir: "right" });
+        folds.push({ type: "v", k, dir: "left" });
+      }
+      return folds;
+    }
+
+    function findShortestPath(start, target, maxDepth) {
+      const targetKey = pointsKey(target);
+      const startKey = pointsKey(start);
+      if (startKey === targetKey) return [];
+
+      const folds = allFolds();
+      const visited = new Set([startKey]);
+      const queue = [{ points: start, path: [] }];
+      let idx = 0;
+
+      while (idx < queue.length) {
+        const { points, path } = queue[idx];
+        idx += 1;
+        if (path.length >= maxDepth) continue;
+
+        for (const fold of folds) {
+          const next = applyFoldForGen(points, fold);
+          if (!next) continue;
+          const key = pointsKey(next);
+          if (visited.has(key)) continue;
+          const nextPath = [...path, fold];
+          if (key === targetKey) return nextPath;
+          visited.add(key);
+          queue.push({ points: next, path: nextPath });
+        }
+      }
+      return null;
+    }
+
+    function randomPoints(rng, count) {
+      const points = [];
+      for (let i = 0; i < count; i += 1) {
+        points.push({ x: randomInt(rng, 1, SIZE), y: randomInt(rng, 1, SIZE) });
+      }
+      return points;
+    }
+
+    function randomPointsUnique(rng, count) {
+      const points = [];
+      const used = new Set();
+      while (points.length < count) {
+        const p = { x: randomInt(rng, 1, SIZE), y: randomInt(rng, 1, SIZE) };
+        const key = `${p.x},${p.y}`;
+        if (used.has(key)) continue;
+        used.add(key);
+        points.push(p);
+      }
+      return points;
+    }
+
+    function randomPointsForMeta(rng, meta) {
+      return meta.allowStack
+        ? randomPoints(rng, meta.dots)
+        : randomPointsUnique(rng, meta.dots);
+    }
+
+    function themeForDate(dateKey) {
+      const themes = [
+        "Headlines",
+        "Ticker",
+        "Dateline",
+        "Byline",
+        "Front Page",
+        "Crossword",
+        "Edition",
+        "Press",
+        "Column",
+        "Deadline",
+        "Dispatch",
+        "Scoop",
+        "Journal",
+        "Gazette",
+        "Courier",
+        "Ledger",
+        "Bulletin",
+        "Notebook",
+        "Newsroom",
+        "Spotlight",
+      ];
+      const rng = mulberry32(hashStringToSeed(`theme-${dateKey}`));
+      return randomChoice(rng, themes);
+    }
+
+    function formatDailyTitle(theme, label) {
+      return `${theme} ${label}`;
+    }
+
+    function generatePuzzle(rng, meta, dateKey) {
+      const folds = allFolds();
+      const maxAttempts = meta.maxAttempts || 1600;
+      const altAttempts = meta.altAttempts || 0;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        const target = randomPointsForMeta(rng, meta);
+        const targetDistinct = distinctCount(target);
+        if (!meta.allowStack && targetDistinct !== meta.dots) continue;
+        if (meta.allowStack && meta.dots > 1 && targetDistinct < 2) continue;
+        let start = target.map((p) => ({ ...p }));
+
+        for (let i = 0; i < meta.par; i += 1) {
+          const fold = folds[randomInt(rng, 0, folds.length - 1)];
+          const next = applyFoldForGen(start, fold);
+          if (!next) {
+            i -= 1;
+            continue;
+          }
+          start = next;
+        }
+
+        const startDistinct = distinctCount(start);
+        if (pointsKey(start) === pointsKey(target)) continue;
+        if (!meta.allowStack && startDistinct !== meta.dots) continue;
+        if (meta.allowStack && meta.dots > 1 && startDistinct < 2) continue;
+
+        const solution = findShortestPath(start, target, meta.par);
+        if (solution && solution.length === meta.par) {
+          const theme = themeForDate(dateKey);
+          return {
+            id: `${meta.difficulty}-${dateKey}`,
+            title: formatDailyTitle(theme, meta.label),
+            difficulty: meta.difficulty,
+            start,
+            target,
+            solution,
+          };
+        }
+      }
+
+      for (let attempt = 0; attempt < altAttempts; attempt += 1) {
+        const target = randomPointsForMeta(rng, meta);
+        const start = randomPointsForMeta(rng, meta);
+        if (pointsKey(start) === pointsKey(target)) continue;
+        const targetDistinct = distinctCount(target);
+        const startDistinct = distinctCount(start);
+        if (!meta.allowStack) {
+          if (targetDistinct !== meta.dots || startDistinct !== meta.dots) continue;
+        } else if (meta.dots > 1 && (targetDistinct < 2 || startDistinct < 2)) {
+          continue;
+        }
+
+        const solution = findShortestPath(start, target, meta.par);
+        if (solution && solution.length === meta.par) {
+          const theme = themeForDate(dateKey);
+          return {
+            id: `${meta.difficulty}-${dateKey}`,
+            title: formatDailyTitle(theme, meta.label),
+            difficulty: meta.difficulty,
+            start,
+            target,
+            solution,
+          };
+        }
+      }
+      return null;
+    }
+
+    function puzzleMatchesMeta(puzzle, meta) {
+      if (!puzzle) return false;
+      if (puzzle.solution.length !== meta.par) return false;
+      if (puzzle.start.length !== meta.dots || puzzle.target.length !== meta.dots) return false;
+      if (!meta.allowStack) {
+        if (distinctCount(puzzle.start) !== meta.dots) return false;
+        if (distinctCount(puzzle.target) !== meta.dots) return false;
+      }
+      return true;
+    }
+
+    function generateDailyPuzzles(fallback) {
+      const dateKey = getDateKeyPST();
+      const rng = mulberry32(hashStringToSeed(dateKey));
+      const metas = [
+        { difficulty: "easy", label: "Easy", par: 3, dots: 2, allowStack: true },
+        { difficulty: "medium", label: "Medium", par: 4, dots: 3, allowStack: true },
+        {
+          difficulty: "hard",
+          label: "Hard",
+          par: 5,
+          dots: 4,
+          allowStack: false,
+          maxAttempts: 8000,
+          altAttempts: 4000,
+        },
+      ];
+
+      const daily = metas.map((meta) => {
+        const tries = 10;
+        for (let i = 0; i < tries; i += 1) {
+          const localSeed = hashStringToSeed(`${dateKey}-${meta.difficulty}-${i}`);
+          const localRng = mulberry32(localSeed);
+          const puzzle = generatePuzzle(localRng, meta, dateKey);
+          if (puzzleMatchesMeta(puzzle, meta)) return puzzle;
+        }
+        const fallbackPuzzle = generatePuzzle(rng, meta, dateKey);
+        return puzzleMatchesMeta(fallbackPuzzle, meta) ? fallbackPuzzle : null;
+      });
+      const missing = daily.some((puzzle) => !puzzle);
+      if (!missing) return daily;
+
+      const fallbackByDifficulty = new Map(
+        fallback.map((puzzle) => [puzzle.difficulty, puzzle])
+      );
+      return metas.map((meta, idx) => daily[idx] || fallbackByDifficulty.get(meta.difficulty));
+    }
+
+    function watchForNewDay() {
+      let currentKey = getDateKeyPST();
+      setInterval(() => {
+        const nextKey = getDateKeyPST();
+        if (nextKey !== currentKey) {
+          currentKey = nextKey;
+          window.location.reload();
+        }
+      }, 60000);
+    }
+
+    const fallbackPuzzles = [
+      {
+        id: "easy-fallback",
+        title: "Archive Easy",
+        difficulty: "easy",
+        start: [
+          { x: 2, y: 3 },
+          { x: 3, y: 3 },
+        ],
+        target: [
+          { x: 5, y: 5 },
+          { x: 4, y: 5 },
+        ],
+        solution: [
+          { type: "h", k: 2, dir: "up" },
+          { type: "h", k: 3, dir: "down" },
+          { type: "v", k: 3, dir: "right" },
+        ],
+      },
+      {
+        id: "medium-fallback",
+        title: "Archive Medium",
+        difficulty: "medium",
+        start: [
+          { x: 6, y: 5 },
+          { x: 5, y: 5 },
+          { x: 6, y: 5 },
+        ],
+        target: [
+          { x: 4, y: 3 },
+          { x: 3, y: 3 },
+          { x: 4, y: 3 },
+        ],
+        solution: [
+          { type: "h", k: 3, dir: "up" },
+          { type: "h", k: 2, dir: "down" },
+          { type: "v", k: 3, dir: "left" },
+          { type: "v", k: 2, dir: "right" },
+        ],
+      },
+      {
+        id: "hard-fallback",
+        title: "Archive Hard",
+        difficulty: "hard",
+        start: [
+          { x: 5, y: 1 },
+          { x: 1, y: 1 },
+          { x: 3, y: 3 },
+          { x: 6, y: 6 },
+        ],
+        target: [
+          { x: 5, y: 4 },
+          { x: 3, y: 4 },
+          { x: 4, y: 3 },
+          { x: 5, y: 3 },
+        ],
+        solution: [
+          { type: "v", k: 2, dir: "right" },
+          { type: "h", k: 4, dir: "up" },
+          { type: "h", k: 3, dir: "down" },
+          { type: "h", k: 4, dir: "up" },
+          { type: "v", k: 5, dir: "left" },
+        ],
+      },
+    ];
+
+    const puzzles = generateDailyPuzzles(fallbackPuzzles);
+    watchForNewDay();
+
+    const puzzleById = new Map(puzzles.map((puzzle) => [puzzle.id, puzzle]));
+
+    function buildPuzzle(puzzleId) {
+      const def = puzzleById.get(puzzleId) || puzzles[0];
+      return {
+        title: def.title,
+        difficulty: def.difficulty,
+        start: def.start.map((p) => ({ ...p })),
+        target: def.target.map((p) => ({ ...p })),
+        par: def.solution.length,
+        solution: def.solution.map((fold) => ({ ...fold })),
+      };
+    }
+
+    function formatFold(fold) {
+      if (fold.type === "h") {
+        return fold.dir === "down" ? `Fold row ${fold.k} down` : `Fold row ${fold.k} up`;
+      }
+      return fold.dir === "right" ? `Fold column ${fold.k} right` : `Fold column ${fold.k} left`;
+    }
+
+    function renderFoldIcon(fold) {
+      const ns = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(ns, "svg");
+      svg.setAttribute("viewBox", "0 0 44 44");
+
+      if (fold.type === "h") {
+        const y = fold.k <= 3 ? 20 : 24;
+        const line = document.createElementNS(ns, "line");
+        line.setAttribute("x1", "8");
+        line.setAttribute("x2", "36");
+        line.setAttribute("y1", String(y));
+        line.setAttribute("y2", String(y));
+        svg.appendChild(line);
+
+        const arrow = document.createElementNS(ns, "path");
+        if (fold.dir === "down") {
+          arrow.setAttribute("d", "M22 28 L22 34 M22 34 L18 30 M22 34 L26 30");
+        } else {
+          arrow.setAttribute("d", "M22 16 L22 10 M22 10 L18 14 M22 10 L26 14");
+        }
+        arrow.setAttribute("class", "arrow");
+        svg.appendChild(arrow);
+      } else {
+        const x = fold.k <= 3 ? 20 : 24;
+        const line = document.createElementNS(ns, "line");
+        line.setAttribute("y1", "8");
+        line.setAttribute("y2", "36");
+        line.setAttribute("x1", String(x));
+        line.setAttribute("x2", String(x));
+        svg.appendChild(line);
+
+        const arrow = document.createElementNS(ns, "path");
+        if (fold.dir === "right") {
+          arrow.setAttribute("d", "M28 22 L34 22 M34 22 L30 18 M34 22 L30 26");
+        } else {
+          arrow.setAttribute("d", "M16 22 L10 22 M10 22 L14 18 M10 22 L14 26");
+        }
+        arrow.setAttribute("class", "arrow");
+        svg.appendChild(arrow);
+      }
+
+      return svg;
+    }
+
+    function renderSolution(steps) {
+      solutionList.innerHTML = "";
+      solutionItems = [];
+      steps.forEach((step) => {
+        const li = document.createElement("li");
+        const wrap = document.createElement("div");
+        wrap.className = "solution-step";
+        wrap.appendChild(renderFoldIcon(step));
+        const label = document.createElement("span");
+        label.textContent = formatFold(step);
+        wrap.appendChild(label);
+        li.appendChild(wrap);
+        solutionList.appendChild(li);
+        solutionItems.push(wrap);
+      });
+    }
+
+    function setActiveStep(index) {
+      solutionItems.forEach((item, i) => {
+        if (i === index) {
+          item.classList.add("active");
+        } else {
+          item.classList.remove("active");
+        }
+      });
+    }
+
+    function setPlaybackMode(on) {
+      isPlayback = on;
+      playSolutionBtn.textContent = on ? "Stop" : "Auto play";
+      [resetBtn, undoBtn, rulesBtn, easyBtn, mediumBtn, hardBtn].forEach((el) => {
+        el.disabled = on;
+      });
+      if (on) {
+        selectedCrease = null;
+        previewPoints = null;
+        directionPanel.style.display = "none";
+      }
+    }
+
+    function snapshotState() {
+      return {
+        points: state.points.map((p) => ({ ...p })),
+        moves: state.moves,
+        history: history.map((step) => ({
+          points: step.points.map((p) => ({ ...p })),
+          moves: step.moves,
+        })),
+        winShown,
+      };
+    }
+
+    function restoreSnapshot() {
+      if (!playbackSnapshot) return;
+      state.points = playbackSnapshot.points.map((p) => ({ ...p }));
+      state.moves = playbackSnapshot.moves;
+      history = playbackSnapshot.history.map((step) => ({
+        points: step.points.map((p) => ({ ...p })),
+        moves: step.moves,
+      }));
+      winShown = playbackSnapshot.winShown;
+    }
+
+    function stopPlayback(restore = true) {
+      if (playbackTimer) {
+        clearInterval(playbackTimer);
+        playbackTimer = null;
+      }
+      playbackIndex = 0;
+      playbackCrease = null;
+      setActiveStep(-1);
+      if (restore) {
+        restoreSnapshot();
+      }
+      playbackSnapshot = null;
+      setPlaybackMode(false);
+      renderBoard();
+      updateStatus();
+    }
+
+    function beginPlaybackSession() {
+      if (!isPlayback) {
+        playbackSnapshot = snapshotState();
+        setPlaybackMode(true);
+        setSolutionOpen(true);
+        state.points = state.start.map((p) => ({ ...p }));
+        state.moves = 0;
+        history = [];
+        winShown = true;
+        playbackIndex = 0;
+        playbackCrease = null;
+        setActiveStep(-1);
+        renderBoard();
+        updateStatus();
+      }
+    }
+
+    function advancePlayback() {
+      if (playbackIndex >= state.solution.length) {
+        stopPlayback(true);
+        return;
+      }
+      playbackCrease = { type: state.solution[playbackIndex].type, k: state.solution[playbackIndex].k };
+      state.points = applyFold(state.points, state.solution[playbackIndex]);
+      state.moves = playbackIndex + 1;
+      setActiveStep(playbackIndex);
+      playbackIndex += 1;
+      renderBoard();
+      updateStatus();
+      if (playbackIndex >= state.solution.length) {
+        setTimeout(() => stopPlayback(true), 800);
+      }
+    }
+
+    function startAutoPlayback() {
+      if (isPlayback && playbackTimer) {
+        stopPlayback(true);
+        return;
+      }
+      beginPlaybackSession();
+      if (playbackTimer) {
+        clearInterval(playbackTimer);
+      }
+      playbackTimer = setInterval(() => {
+        if (playbackIndex >= state.solution.length) {
+          clearInterval(playbackTimer);
+          playbackTimer = null;
+          setTimeout(() => stopPlayback(true), 800);
+          return;
+        }
+        advancePlayback();
+      }, 950);
+    }
+
+    function setSolutionOpen(open) {
+      solutionOpen = open;
+      if (solutionOpen) {
+        solutionContent.classList.add("show");
+        solutionHint.textContent = "Tap to hide";
+      } else {
+        solutionContent.classList.remove("show");
+        solutionHint.textContent = "Tap to show";
+      }
+    }
+
+    function newPuzzle(puzzleId = puzzles[0].id) {
+      const puzzle = buildPuzzle(puzzleId);
+      difficulty = puzzle.difficulty;
+      state = {
+        title: puzzle.title,
+        difficulty: puzzle.difficulty,
+        start: puzzle.start.map((p) => ({ ...p })),
+        points: puzzle.start.map((p) => ({ ...p })),
+        target: puzzle.target.map((p) => ({ ...p })),
+        par: puzzle.par,
+        moves: 0,
+        solution: puzzle.solution,
+      };
+      parEl.textContent = state.par;
+      puzzleTitleEl.textContent = state.title;
+      history = [];
+      winShown = false;
+      setSolutionOpen(false);
+      selectedCrease = null;
+      previewPoints = null;
+      directionPanel.style.display = "none";
+      renderBoard();
+      renderSolution(state.solution);
+      updateStatus();
+      setDifficultyButtons(state.difficulty);
+    }
+
+    function bindEvents() {
+      board.addEventListener("click", (event) => {
+        if (isPlayback) return;
+        const target = event.target;
+        if (!target.classList.contains("crease-hit")) return;
+        const crease = {
+          type: target.dataset.type,
+          k: Number(target.dataset.k),
+        };
+        showDirections(crease);
+      });
+
+      resetBtn.addEventListener("click", () => resetPuzzle());
+      undoBtn.addEventListener("click", () => undoMove());
+      rulesBtn.addEventListener("click", () => openRules());
+      easyBtn.addEventListener("click", () => setDifficulty("easy"));
+      mediumBtn.addEventListener("click", () => setDifficulty("medium"));
+      hardBtn.addEventListener("click", () => setDifficulty("hard"));
+      solutionToggle.addEventListener("click", () => setSolutionOpen(!solutionOpen));
+      stepSolutionBtn.addEventListener("click", () => {
+        beginPlaybackSession();
+        advancePlayback();
+      });
+      playSolutionBtn.addEventListener("click", () => startAutoPlayback());
+
+      startBtn.addEventListener("click", () => {
+        if (hideRules.checked) {
+          localStorage.setItem("foldHideRules", "1");
+        }
+        closeRules();
+      });
+
+      closeWinBtn.addEventListener("click", () => closeWin());
+
+      window.addEventListener("keydown", (event) => {
+        if (rulesModal.classList.contains("show")) return;
+        const key = event.key;
+        if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(key)) return;
+        event.preventDefault();
+        if (key === "ArrowUp") handleArrowFold("up");
+        if (key === "ArrowDown") handleArrowFold("down");
+        if (key === "ArrowLeft") handleArrowFold("left");
+        if (key === "ArrowRight") handleArrowFold("right");
+      });
+    }
+
+    function openRules() {
+      rulesModal.classList.add("show");
+    }
+
+    function closeRules() {
+      rulesModal.classList.remove("show");
+    }
+
+    function openWin() {
+      winModal.classList.add("show");
+    }
+
+    function closeWin() {
+      winModal.classList.remove("show");
+    }
+
+    function initRules() {
+      const hide = localStorage.getItem("foldHideRules") === "1";
+      if (!hide) {
+        openRules();
+      }
+    }
+
+    function setDifficulty(level) {
+      const next = puzzles.find((puzzle) => puzzle.difficulty === level) || puzzles[0];
+      newPuzzle(next.id);
+    }
+
+    function setDifficultyButtons(level) {
+      const buttons = [easyBtn, mediumBtn, hardBtn];
+      buttons.forEach((btn) => btn.classList.remove("active"));
+      if (level === "easy") easyBtn.classList.add("active");
+      if (level === "medium") mediumBtn.classList.add("active");
+      if (level === "hard") hardBtn.classList.add("active");
+    }
+
+    bindEvents();
+    newPuzzle();
+    initRules();
+  </script>
+</body>
+</html>
