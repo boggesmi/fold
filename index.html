@@ -802,11 +802,11 @@
       selectedCrease = crease;
       const options = [];
       if (crease.type === "h") {
-        options.push({ label: "Fold top ↓", dir: "down" });
-        options.push({ label: "Fold bottom ↑", dir: "up" });
+        options.push({ label: "Fold ↓", dir: "down" });
+        options.push({ label: "Fold ↑", dir: "up" });
       } else {
-        options.push({ label: "Fold left →", dir: "right" });
-        options.push({ label: "Fold right ←", dir: "left" });
+        options.push({ label: "Fold →", dir: "right" });
+        options.push({ label: "Fold ←", dir: "left" });
       }
 
       const buttons = [dirA, dirB];
@@ -1144,6 +1144,32 @@
       return true;
     }
 
+    function loadCachedDaily(dateKey, metas) {
+      try {
+        const raw = localStorage.getItem(`foldDaily-${dateKey}`);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return null;
+        const byDifficulty = new Map(parsed.map((puzzle) => [puzzle.difficulty, puzzle]));
+        const cached = metas.map((meta) => {
+          const puzzle = byDifficulty.get(meta.difficulty);
+          return puzzleMatchesMeta(puzzle, meta) ? puzzle : null;
+        });
+        return cached.every(Boolean) ? cached : null;
+      } catch (err) {
+        return null;
+      }
+    }
+
+    function cacheDaily(dateKey, puzzlesToCache) {
+      try {
+        if (!Array.isArray(puzzlesToCache) || puzzlesToCache.some((p) => !p)) return;
+        localStorage.setItem(`foldDaily-${dateKey}`, JSON.stringify(puzzlesToCache));
+      } catch (err) {
+        // Ignore storage failures (private mode / quota).
+      }
+    }
+
     function generateDailyPuzzles(fallback) {
       const dateKey = getDateKeyPST();
       const rng = mulberry32(hashStringToSeed(dateKey));
@@ -1161,6 +1187,9 @@
         },
       ];
 
+      const cached = loadCachedDaily(dateKey, metas);
+      if (cached) return cached;
+
       const daily = metas.map((meta) => {
         const tries = 10;
         for (let i = 0; i < tries; i += 1) {
@@ -1173,12 +1202,17 @@
         return puzzleMatchesMeta(fallbackPuzzle, meta) ? fallbackPuzzle : null;
       });
       const missing = daily.some((puzzle) => !puzzle);
-      if (!missing) return daily;
+      if (!missing) {
+        cacheDaily(dateKey, daily);
+        return daily;
+      }
 
       const fallbackByDifficulty = new Map(
         fallback.map((puzzle) => [puzzle.difficulty, puzzle])
       );
-      return metas.map((meta, idx) => daily[idx] || fallbackByDifficulty.get(meta.difficulty));
+      const finalSet = metas.map((meta, idx) => daily[idx] || fallbackByDifficulty.get(meta.difficulty));
+      cacheDaily(dateKey, finalSet);
+      return finalSet;
     }
 
     function watchForNewDay() {
