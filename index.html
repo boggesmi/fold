@@ -459,6 +459,16 @@
       font-weight: 600;
     }
 
+    .ruth-note {
+      padding: 8px 10px;
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      background: #f8f5ef;
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
     @keyframes fadeUp {
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
@@ -580,6 +590,7 @@
       </div>
       <h2>Nice fold.</h2>
       <div>You matched the constellation.</div>
+      <div class="ruth-note" id="winRuthNoteWrap"><strong>Daily Note:</strong> <span id="winRuthNote">-</span></div>
       <div class="modal-actions">
         <button id="closeWinBtn">Keep folding</button>
       </div>
@@ -594,6 +605,8 @@
     const movesEl = document.getElementById("moves");
     const winText = document.getElementById("winText");
     const puzzleTitleEl = document.getElementById("puzzleTitle");
+    const winRuthNoteWrapEl = document.getElementById("winRuthNoteWrap");
+    const winRuthNoteEl = document.getElementById("winRuthNote");
     const solutionList = document.getElementById("solutionList");
     const solutionToggle = document.getElementById("solutionToggle");
     const solutionContent = document.getElementById("solutionContent");
@@ -1064,6 +1077,35 @@
       return `${theme} ${label}`;
     }
 
+    function buildRuthMessage(dateKey) {
+      const rng = mulberry32(hashStringToSeed(`ruth-note-${dateKey}`));
+      const thichQuotes = [
+        "The present moment is the only moment available to us, and it is the door to all moments.",
+        "Smile, breathe, and go slowly.",
+        "Drink your tea slowly and reverently, as if it is the axis on which the world earth revolves-slowly, evenly, without rushing toward the future.",
+        "The most precious gift we can offer others is our presence.",
+        "No mud, no lotus. Both are necessary for growth.",
+        "Because you are alive, everything is possible.",
+        "Hope is important because it can make the present moment less difficult to bear. If we believe that tomorrow will be better, we can bear a hardship today.",
+        "Sometimes your joy is the source of your smile, but sometimes your smile can be the source of your joy.",
+        "Walk as if you are kissing the Earth with your feet.",
+        "We are here to awaken from our illusion of separateness.",
+        "The seed of suffering in you may be strong, but do not wait until you have no more suffering before allowing yourself to be happy.",
+        "Breathing in, I calm body and mind. Breathing out, I smile.",
+      ];
+      const quote = randomChoice(rng, thichQuotes);
+      return `Ruth, good job! "${quote}" - Thich Nhat Hanh`;
+    }
+
+    function addRuthNote(puzzles, dateKey) {
+      const note = buildRuthMessage(dateKey);
+      puzzles.forEach((puzzle) => {
+        if (!puzzle) return;
+        puzzle.ruthNote = puzzle.difficulty === "medium" ? note : "";
+      });
+      return puzzles;
+    }
+
     function generatePuzzle(rng, meta, dateKey) {
       const folds = allFolds();
       const maxAttempts = meta.maxAttempts || 1600;
@@ -1188,7 +1230,7 @@
       ];
 
       const cached = loadCachedDaily(dateKey, metas);
-      if (cached) return cached;
+      if (cached) return addRuthNote(cached, dateKey);
 
       const daily = metas.map((meta) => {
         const tries = 10;
@@ -1204,7 +1246,7 @@
       const missing = daily.some((puzzle) => !puzzle);
       if (!missing) {
         cacheDaily(dateKey, daily);
-        return daily;
+        return addRuthNote(daily, dateKey);
       }
 
       const fallbackByDifficulty = new Map(
@@ -1212,7 +1254,7 @@
       );
       const finalSet = metas.map((meta, idx) => daily[idx] || fallbackByDifficulty.get(meta.difficulty));
       cacheDaily(dateKey, finalSet);
-      return finalSet;
+      return addRuthNote(finalSet, dateKey);
     }
 
     function watchForNewDay() {
@@ -1306,6 +1348,7 @@
         target: def.target.map((p) => ({ ...p })),
         par: def.solution.length,
         solution: def.solution.map((fold) => ({ ...fold })),
+        ruthNote: def.ruthNote || "",
       };
     }
 
@@ -1517,9 +1560,17 @@
         par: puzzle.par,
         moves: 0,
         solution: puzzle.solution,
+        ruthNote: puzzle.ruthNote,
       };
       parEl.textContent = state.par;
       puzzleTitleEl.textContent = state.title;
+      puzzleTitleEl.dataset.ruthNote = state.ruthNote || "";
+      if (winRuthNoteEl) {
+        winRuthNoteEl.textContent = state.ruthNote || "";
+      }
+      if (winRuthNoteWrapEl) {
+        winRuthNoteWrapEl.style.display = state.ruthNote ? "" : "none";
+      }
       history = [];
       winShown = false;
       setSolutionOpen(false);
@@ -1587,6 +1638,12 @@
     }
 
     function openWin() {
+      if (winRuthNoteEl) {
+        winRuthNoteEl.textContent = state?.ruthNote || "";
+      }
+      if (winRuthNoteWrapEl) {
+        winRuthNoteWrapEl.style.display = state?.ruthNote ? "" : "none";
+      }
       winModal.classList.add("show");
     }
 
