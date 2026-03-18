@@ -499,6 +499,7 @@
           <button id="easyBtn" class="active">Easy</button>
           <button id="mediumBtn">Medium</button>
           <button id="hardBtn">Hard</button>
+          <button id="largeBtn">Large</button>
         </div>
         <button id="resetBtn">Reset</button>
         <button id="undoBtn">Undo</button>
@@ -598,8 +599,14 @@
   </div>
 
   <script>
-    const SIZE = 6;
-    const CELL = 420 / SIZE;
+    const BOARD = 420;
+    let SIZE = 6;
+    let CELL = BOARD / SIZE;
+
+    function setGridSize(s) {
+      SIZE = s;
+      CELL = BOARD / s;
+    }
     const board = document.getElementById("board");
     const parEl = document.getElementById("par");
     const movesEl = document.getElementById("moves");
@@ -623,6 +630,7 @@
     const easyBtn = document.getElementById("easyBtn");
     const mediumBtn = document.getElementById("mediumBtn");
     const hardBtn = document.getElementById("hardBtn");
+    const largeBtn = document.getElementById("largeBtn");
 
     const rulesModal = document.getElementById("rulesModal");
     const winModal = document.getElementById("winModal");
@@ -724,7 +732,7 @@
         const y = k * CELL;
         const crease = document.createElementNS("http://www.w3.org/2000/svg", "line");
         crease.setAttribute("x1", 0);
-        crease.setAttribute("x2", 420);
+        crease.setAttribute("x2", BOARD);
         crease.setAttribute("y1", y);
         crease.setAttribute("y2", y);
         crease.setAttribute("class", "crease-line");
@@ -734,7 +742,7 @@
 
         const hit = document.createElementNS("http://www.w3.org/2000/svg", "line");
         hit.setAttribute("x1", 0);
-        hit.setAttribute("x2", 420);
+        hit.setAttribute("x2", BOARD);
         hit.setAttribute("y1", y);
         hit.setAttribute("y2", y);
         hit.setAttribute("class", "crease-hit");
@@ -747,7 +755,7 @@
         const x = k * CELL;
         const crease = document.createElementNS("http://www.w3.org/2000/svg", "line");
         crease.setAttribute("y1", 0);
-        crease.setAttribute("y2", 420);
+        crease.setAttribute("y2", BOARD);
         crease.setAttribute("x1", x);
         crease.setAttribute("x2", x);
         crease.setAttribute("class", "crease-line");
@@ -757,7 +765,7 @@
 
         const hit = document.createElementNS("http://www.w3.org/2000/svg", "line");
         hit.setAttribute("y1", 0);
-        hit.setAttribute("y2", 420);
+        hit.setAttribute("y2", BOARD);
         hit.setAttribute("x1", x);
         hit.setAttribute("x2", x);
         hit.setAttribute("class", "crease-hit");
@@ -781,12 +789,13 @@
     }
 
     function renderBoard() {
-      renderGrid(board, CELL, 420);
+      renderGrid(board, CELL, BOARD);
       renderCreases();
-      renderPoints(board, state.target, CELL, "target", 10, 4);
-      renderPoints(board, state.points, CELL, "current", 8, 4);
+      const dotScale = CELL / 70;
+      renderPoints(board, state.target, CELL, "target", 10 * dotScale, 4 * dotScale);
+      renderPoints(board, state.points, CELL, "current", 8 * dotScale, 4 * dotScale);
       if (previewPoints) {
-        renderPoints(board, previewPoints, CELL, "ghost", 7, 4);
+        renderPoints(board, previewPoints, CELL, "ghost", 7 * dotScale, 4 * dotScale);
       }
 
       const activeCrease = playbackCrease || selectedCrease;
@@ -1213,29 +1222,47 @@
     }
 
     const dailyMetas = [
-      { difficulty: "easy", label: "Easy", par: 3, dots: 2, allowStack: true },
-      { difficulty: "medium", label: "Medium", par: 4, dots: 3, allowStack: true },
+      { difficulty: "easy", label: "Easy", par: 3, dots: 2, allowStack: true, size: 6 },
+      { difficulty: "medium", label: "Medium", par: 4, dots: 3, allowStack: true, size: 6 },
       {
         difficulty: "hard",
         label: "Hard",
         par: 5,
         dots: 4,
         allowStack: false,
+        size: 6,
         maxAttempts: 8000,
         altAttempts: 4000,
+      },
+      {
+        difficulty: "large",
+        label: "Large",
+        par: 4,
+        dots: 3,
+        allowStack: true,
+        size: 8,
+        maxAttempts: 2000,
       },
     ];
 
     function generateOnePuzzle(meta, dateKey, rng) {
+      setGridSize(meta.size || 6);
       const tries = 10;
       for (let i = 0; i < tries; i += 1) {
         const localSeed = hashStringToSeed(`${dateKey}-${meta.difficulty}-${i}`);
         const localRng = mulberry32(localSeed);
         const puzzle = generatePuzzle(localRng, meta, dateKey);
-        if (puzzleMatchesMeta(puzzle, meta)) return puzzle;
+        if (puzzleMatchesMeta(puzzle, meta)) {
+          puzzle.size = meta.size || 6;
+          return puzzle;
+        }
       }
       const fallbackPuzzle = generatePuzzle(rng, meta, dateKey);
-      return puzzleMatchesMeta(fallbackPuzzle, meta) ? fallbackPuzzle : null;
+      if (puzzleMatchesMeta(fallbackPuzzle, meta)) {
+        fallbackPuzzle.size = meta.size || 6;
+        return fallbackPuzzle;
+      }
+      return null;
     }
 
     function generateDailyPuzzles(fallback) {
@@ -1319,6 +1346,7 @@
         id: "easy-fallback",
         title: "Archive Easy",
         difficulty: "easy",
+        size: 6,
         start: [
           { x: 2, y: 3 },
           { x: 3, y: 3 },
@@ -1337,27 +1365,29 @@
         id: "medium-fallback",
         title: "Archive Medium",
         difficulty: "medium",
+        size: 6,
         start: [
-          { x: 6, y: 5 },
-          { x: 5, y: 5 },
-          { x: 6, y: 5 },
+          { x: 1, y: 2 },
+          { x: 3, y: 4 },
+          { x: 1, y: 2 },
         ],
         target: [
-          { x: 4, y: 3 },
-          { x: 3, y: 3 },
-          { x: 4, y: 3 },
+          { x: 4, y: 5 },
+          { x: 2, y: 3 },
+          { x: 4, y: 5 },
         ],
         solution: [
-          { type: "h", k: 3, dir: "up" },
-          { type: "h", k: 2, dir: "down" },
-          { type: "v", k: 3, dir: "left" },
           { type: "v", k: 2, dir: "right" },
+          { type: "h", k: 3, dir: "down" },
+          { type: "v", k: 4, dir: "left" },
+          { type: "h", k: 4, dir: "up" },
         ],
       },
       {
         id: "hard-fallback",
         title: "Archive Hard",
         difficulty: "hard",
+        size: 6,
         start: [
           { x: 5, y: 1 },
           { x: 1, y: 1 },
@@ -1376,6 +1406,28 @@
           { type: "h", k: 3, dir: "down" },
           { type: "h", k: 4, dir: "up" },
           { type: "v", k: 5, dir: "left" },
+        ],
+      },
+      {
+        id: "large-fallback",
+        title: "Archive Large",
+        difficulty: "large",
+        size: 8,
+        start: [
+          { x: 6, y: 5 },
+          { x: 5, y: 5 },
+          { x: 6, y: 5 },
+        ],
+        target: [
+          { x: 4, y: 3 },
+          { x: 3, y: 3 },
+          { x: 4, y: 3 },
+        ],
+        solution: [
+          { type: "h", k: 3, dir: "up" },
+          { type: "h", k: 2, dir: "down" },
+          { type: "v", k: 3, dir: "left" },
+          { type: "v", k: 2, dir: "right" },
         ],
       },
     ];
@@ -1400,6 +1452,7 @@
       easyBtn.disabled = !puzzleById.has(list[0]?.id);
       mediumBtn.disabled = list.length < 2 || !list[1];
       hardBtn.disabled = list.length < 3 || !list[2];
+      largeBtn.disabled = list.length < 4 || !list[3];
     });
     watchForNewDay();
 
@@ -1408,6 +1461,7 @@
       return {
         title: def.title,
         difficulty: def.difficulty,
+        size: def.size || 6,
         start: def.start.map((p) => ({ ...p })),
         target: def.target.map((p) => ({ ...p })),
         par: def.solution.length,
@@ -1497,7 +1551,7 @@
     function setPlaybackMode(on) {
       isPlayback = on;
       playSolutionBtn.textContent = on ? "Stop" : "Auto play";
-      [resetBtn, undoBtn, rulesBtn, easyBtn, mediumBtn, hardBtn].forEach((el) => {
+      [resetBtn, undoBtn, rulesBtn, easyBtn, mediumBtn, hardBtn, largeBtn].forEach((el) => {
         el.disabled = on;
       });
       if (on) {
@@ -1614,6 +1668,7 @@
 
     function newPuzzle(puzzleId = puzzles[0].id) {
       const puzzle = buildPuzzle(puzzleId);
+      setGridSize(puzzle.size);
       difficulty = puzzle.difficulty;
       state = {
         title: puzzle.title,
@@ -1665,6 +1720,7 @@
       easyBtn.addEventListener("click", () => setDifficulty("easy"));
       mediumBtn.addEventListener("click", () => setDifficulty("medium"));
       hardBtn.addEventListener("click", () => setDifficulty("hard"));
+      largeBtn.addEventListener("click", () => setDifficulty("large"));
       solutionToggle.addEventListener("click", () => setSolutionOpen(!solutionOpen));
       stepSolutionBtn.addEventListener("click", () => {
         beginPlaybackSession();
@@ -1729,11 +1785,12 @@
     }
 
     function setDifficultyButtons(level) {
-      const buttons = [easyBtn, mediumBtn, hardBtn];
+      const buttons = [easyBtn, mediumBtn, hardBtn, largeBtn];
       buttons.forEach((btn) => btn.classList.remove("active"));
       if (level === "easy") easyBtn.classList.add("active");
       if (level === "medium") mediumBtn.classList.add("active");
       if (level === "hard") hardBtn.classList.add("active");
+      if (level === "large") largeBtn.classList.add("active");
     }
 
     bindEvents();
