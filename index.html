@@ -1304,22 +1304,77 @@
       addRuthNote(daily, dateKey);
       onReady(daily);
 
-      // Generate medium and hard asynchronously, yielding between each
-      let metaIdx = 1;
-      function generateNext() {
-        if (metaIdx >= dailyMetas.length) {
-          if (daily.every(Boolean)) cacheDaily(dateKey, daily);
-          return;
-        }
-        const meta = dailyMetas[metaIdx];
-        const puzzle = generateOnePuzzle(meta, dateKey, rng) || fallbackByDifficulty.get(meta.difficulty);
-        daily.push(puzzle);
+      // Generate remaining puzzles off the main thread using a Blob Worker
+      const workerFns = [
+        randomInt, randomChoice, mulberry32, hashStringToSeed,
+        reflectPointForGen, applyFoldForGen, pointsKey, distinctCount,
+        allFolds, findShortestPath, randomPoints, randomPointsUnique,
+        randomPointsForMeta, themeForDate, formatDailyTitle,
+        generatePuzzle, puzzleMatchesMeta, generateOnePuzzle, setGridSize,
+      ].map((fn) => fn.toString()).join("\n");
+
+      const workerBody = `
+        let SIZE = 6, CELL = 70, BOARD = 420;
+        ${workerFns}
+        self.onmessage = function(e) {
+          const { metas, dateKey } = e.data;
+          for (const meta of metas) {
+            const localSeed = hashStringToSeed(dateKey + "-worker-" + meta.difficulty);
+            const rng = mulberry32(localSeed);
+            const puzzle = generateOnePuzzle(meta, dateKey, rng);
+            self.postMessage({ difficulty: meta.difficulty, puzzle });
+          }
+        };
+      `;
+      const blob = new Blob([workerBody], { type: "application/javascript" });
+      const workerUrl = URL.createObjectURL(blob);
+      const worker = new Worker(workerUrl);
+
+      const remainingMetas = dailyMetas.slice(1);
+      let received = 0;
+
+      worker.onmessage = function(e) {
+        const { difficulty, puzzle } = e.data;
+        const meta = remainingMetas.find((m) => m.difficulty === difficulty);
+        const idx = dailyMetas.findIndex((m) => m.difficulty === difficulty);
+        const resolved = puzzle && puzzleMatchesMeta(puzzle, meta)
+          ? Object.assign(puzzle, { size: meta.size || 6 })
+          : fallbackByDifficulty.get(difficulty);
+        daily[idx] = resolved;
         addRuthNote(daily, dateKey);
         onReady(daily);
-        metaIdx += 1;
+        received += 1;
+        if (received >= remainingMetas.length) {
+          if (daily.every(Boolean)) cacheDaily(dateKey, daily);
+          worker.terminate();
+          URL.revokeObjectURL(workerUrl);
+        }
+      };
+
+      worker.onerror = function() {
+        // Worker failed (e.g. CSP restriction) — fall back to setTimeout
+        worker.terminate();
+        URL.revokeObjectURL(workerUrl);
+        let metaIdx = 1;
+        function generateNext() {
+          if (metaIdx >= dailyMetas.length) {
+            if (daily.every(Boolean)) cacheDaily(dateKey, daily);
+            return;
+          }
+          const meta = dailyMetas[metaIdx];
+          const puzzle = generateOnePuzzle(meta, dateKey, rng) || fallbackByDifficulty.get(meta.difficulty);
+          daily.push(puzzle);
+          addRuthNote(daily, dateKey);
+          onReady(daily);
+          metaIdx += 1;
+          setTimeout(generateNext, 0);
+        }
         setTimeout(generateNext, 0);
-      }
-      setTimeout(generateNext, 0);
+      };
+
+      // Pre-fill array slots so indices match dailyMetas
+      while (daily.length < dailyMetas.length) daily.push(null);
+      worker.postMessage({ metas: remainingMetas, dateKey });
 
       return daily;
     }
