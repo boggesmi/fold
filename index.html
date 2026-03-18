@@ -1087,23 +1087,17 @@
     }
 
     function buildRuthMessage(dateKey) {
-      const rng = mulberry32(hashStringToSeed(`ruth-note-${dateKey}`));
-      const thichQuotes = [
-        "The present moment is the only moment available to us, and it is the door to all moments.",
-        "Smile, breathe, and go slowly.",
-        "Drink your tea slowly and reverently, as if it is the axis on which the world earth revolves-slowly, evenly, without rushing toward the future.",
-        "The most precious gift we can offer others is our presence.",
-        "No mud, no lotus. Both are necessary for growth.",
-        "Because you are alive, everything is possible.",
-        "Hope is important because it can make the present moment less difficult to bear. If we believe that tomorrow will be better, we can bear a hardship today.",
-        "Sometimes your joy is the source of your smile, but sometimes your smile can be the source of your joy.",
-        "Walk as if you are kissing the Earth with your feet.",
-        "We are here to awaken from our illusion of separateness.",
-        "The seed of suffering in you may be strong, but do not wait until you have no more suffering before allowing yourself to be happy.",
-        "Breathing in, I calm body and mind. Breathing out, I smile.",
-      ];
-      const quote = randomChoice(rng, thichQuotes);
-      return `Ruth, good job! "${quote}" - Thich Nhat Hanh`;
+      const [year, month, day] = dateKey.split("-").map(Number);
+      const today = new Date(year, month - 1, day);
+      let birthdayYear = year;
+      const thisYearBday = new Date(year, 3, 29); // April 29
+      if (today > thisYearBday) birthdayYear = year + 1;
+      const birthday = new Date(birthdayYear, 3, 29);
+      const diffMs = birthday - today;
+      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+      if (diffDays === 0) return "Ruth, good job! Happy Birthday!";
+      if (diffDays === 1) return "Ruth, good job! Only 1 day until your birthday!";
+      return `Ruth, good job! ${diffDays} days until your birthday!`;
     }
 
     function addRuthNote(puzzles, dateKey) {
