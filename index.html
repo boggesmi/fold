@@ -1212,37 +1212,40 @@
       }
     }
 
+    const dailyMetas = [
+      { difficulty: "easy", label: "Easy", par: 3, dots: 2, allowStack: true },
+      { difficulty: "medium", label: "Medium", par: 4, dots: 3, allowStack: true },
+      {
+        difficulty: "hard",
+        label: "Hard",
+        par: 5,
+        dots: 4,
+        allowStack: false,
+        maxAttempts: 8000,
+        altAttempts: 4000,
+      },
+    ];
+
+    function generateOnePuzzle(meta, dateKey, rng) {
+      const tries = 10;
+      for (let i = 0; i < tries; i += 1) {
+        const localSeed = hashStringToSeed(`${dateKey}-${meta.difficulty}-${i}`);
+        const localRng = mulberry32(localSeed);
+        const puzzle = generatePuzzle(localRng, meta, dateKey);
+        if (puzzleMatchesMeta(puzzle, meta)) return puzzle;
+      }
+      const fallbackPuzzle = generatePuzzle(rng, meta, dateKey);
+      return puzzleMatchesMeta(fallbackPuzzle, meta) ? fallbackPuzzle : null;
+    }
+
     function generateDailyPuzzles(fallback) {
       const dateKey = getDateKeyPST();
       const rng = mulberry32(hashStringToSeed(dateKey));
-      const metas = [
-        { difficulty: "easy", label: "Easy", par: 3, dots: 2, allowStack: true },
-        { difficulty: "medium", label: "Medium", par: 4, dots: 3, allowStack: true },
-        {
-          difficulty: "hard",
-          label: "Hard",
-          par: 5,
-          dots: 4,
-          allowStack: false,
-          maxAttempts: 8000,
-          altAttempts: 4000,
-        },
-      ];
 
-      const cached = loadCachedDaily(dateKey, metas);
+      const cached = loadCachedDaily(dateKey, dailyMetas);
       if (cached) return addRuthNote(cached, dateKey);
 
-      const daily = metas.map((meta) => {
-        const tries = 10;
-        for (let i = 0; i < tries; i += 1) {
-          const localSeed = hashStringToSeed(`${dateKey}-${meta.difficulty}-${i}`);
-          const localRng = mulberry32(localSeed);
-          const puzzle = generatePuzzle(localRng, meta, dateKey);
-          if (puzzleMatchesMeta(puzzle, meta)) return puzzle;
-        }
-        const fallbackPuzzle = generatePuzzle(rng, meta, dateKey);
-        return puzzleMatchesMeta(fallbackPuzzle, meta) ? fallbackPuzzle : null;
-      });
+      const daily = dailyMetas.map((meta) => generateOnePuzzle(meta, dateKey, rng));
       const missing = daily.some((puzzle) => !puzzle);
       if (!missing) {
         cacheDaily(dateKey, daily);
@@ -1252,9 +1255,52 @@
       const fallbackByDifficulty = new Map(
         fallback.map((puzzle) => [puzzle.difficulty, puzzle])
       );
-      const finalSet = metas.map((meta, idx) => daily[idx] || fallbackByDifficulty.get(meta.difficulty));
+      const finalSet = dailyMetas.map((meta, idx) => daily[idx] || fallbackByDifficulty.get(meta.difficulty));
       cacheDaily(dateKey, finalSet);
       return addRuthNote(finalSet, dateKey);
+    }
+
+    function generateDailyPuzzlesProgressive(fallback, onReady) {
+      const dateKey = getDateKeyPST();
+      const rng = mulberry32(hashStringToSeed(dateKey));
+
+      const cached = loadCachedDaily(dateKey, dailyMetas);
+      if (cached) {
+        const result = addRuthNote(cached, dateKey);
+        onReady(result);
+        return result;
+      }
+
+      const fallbackByDifficulty = new Map(
+        fallback.map((puzzle) => [puzzle.difficulty, puzzle])
+      );
+      const daily = [];
+
+      // Generate easy synchronously (fast — par 3, 1600 attempts max)
+      const easyMeta = dailyMetas[0];
+      const easyPuzzle = generateOnePuzzle(easyMeta, dateKey, rng) || fallbackByDifficulty.get("easy");
+      daily.push(easyPuzzle);
+      addRuthNote(daily, dateKey);
+      onReady(daily);
+
+      // Generate medium and hard asynchronously, yielding between each
+      let metaIdx = 1;
+      function generateNext() {
+        if (metaIdx >= dailyMetas.length) {
+          if (daily.every(Boolean)) cacheDaily(dateKey, daily);
+          return;
+        }
+        const meta = dailyMetas[metaIdx];
+        const puzzle = generateOnePuzzle(meta, dateKey, rng) || fallbackByDifficulty.get(meta.difficulty);
+        daily.push(puzzle);
+        addRuthNote(daily, dateKey);
+        onReady(daily);
+        metaIdx += 1;
+        setTimeout(generateNext, 0);
+      }
+      setTimeout(generateNext, 0);
+
+      return daily;
     }
 
     function watchForNewDay() {
@@ -1334,10 +1380,28 @@
       },
     ];
 
-    const puzzles = generateDailyPuzzles(fallbackPuzzles);
-    watchForNewDay();
+    let puzzles = [];
+    const puzzleById = new Map();
 
-    const puzzleById = new Map(puzzles.map((puzzle) => [puzzle.id, puzzle]));
+    function updatePuzzleIndex(list) {
+      puzzles = list;
+      puzzleById.clear();
+      list.forEach((p) => { if (p) puzzleById.set(p.id, p); });
+    }
+
+    generateDailyPuzzlesProgressive(fallbackPuzzles, (list) => {
+      const isFirst = puzzles.length === 0;
+      updatePuzzleIndex(list);
+      if (isFirst) {
+        newPuzzle();
+        initRules();
+      }
+      // Update difficulty buttons availability
+      easyBtn.disabled = !puzzleById.has(list[0]?.id);
+      mediumBtn.disabled = list.length < 2 || !list[1];
+      hardBtn.disabled = list.length < 3 || !list[2];
+    });
+    watchForNewDay();
 
     function buildPuzzle(puzzleId) {
       const def = puzzleById.get(puzzleId) || puzzles[0];
@@ -1659,7 +1723,8 @@
     }
 
     function setDifficulty(level) {
-      const next = puzzles.find((puzzle) => puzzle.difficulty === level) || puzzles[0];
+      const next = puzzles.find((puzzle) => puzzle.difficulty === level);
+      if (!next) return;
       newPuzzle(next.id);
     }
 
@@ -1672,8 +1737,6 @@
     }
 
     bindEvents();
-    newPuzzle();
-    initRules();
   </script>
 </body>
 </html>
