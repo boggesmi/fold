@@ -499,6 +499,7 @@
           <button id="easyBtn" class="active">Easy</button>
           <button id="mediumBtn">Medium</button>
           <button id="hardBtn">Hard</button>
+          <button id="largeBtn">Large</button>
         </div>
         <button id="resetBtn">Reset</button>
         <button id="undoBtn">Undo</button>
@@ -598,8 +599,14 @@
   </div>
 
   <script>
-    const SIZE = 6;
-    const CELL = 420 / SIZE;
+    const BOARD = 420;
+    let SIZE = 6;
+    let CELL = BOARD / SIZE;
+
+    function setGridSize(s) {
+      SIZE = s;
+      CELL = BOARD / s;
+    }
     const board = document.getElementById("board");
     const parEl = document.getElementById("par");
     const movesEl = document.getElementById("moves");
@@ -623,6 +630,7 @@
     const easyBtn = document.getElementById("easyBtn");
     const mediumBtn = document.getElementById("mediumBtn");
     const hardBtn = document.getElementById("hardBtn");
+    const largeBtn = document.getElementById("largeBtn");
 
     const rulesModal = document.getElementById("rulesModal");
     const winModal = document.getElementById("winModal");
@@ -724,7 +732,7 @@
         const y = k * CELL;
         const crease = document.createElementNS("http://www.w3.org/2000/svg", "line");
         crease.setAttribute("x1", 0);
-        crease.setAttribute("x2", 420);
+        crease.setAttribute("x2", BOARD);
         crease.setAttribute("y1", y);
         crease.setAttribute("y2", y);
         crease.setAttribute("class", "crease-line");
@@ -734,7 +742,7 @@
 
         const hit = document.createElementNS("http://www.w3.org/2000/svg", "line");
         hit.setAttribute("x1", 0);
-        hit.setAttribute("x2", 420);
+        hit.setAttribute("x2", BOARD);
         hit.setAttribute("y1", y);
         hit.setAttribute("y2", y);
         hit.setAttribute("class", "crease-hit");
@@ -747,7 +755,7 @@
         const x = k * CELL;
         const crease = document.createElementNS("http://www.w3.org/2000/svg", "line");
         crease.setAttribute("y1", 0);
-        crease.setAttribute("y2", 420);
+        crease.setAttribute("y2", BOARD);
         crease.setAttribute("x1", x);
         crease.setAttribute("x2", x);
         crease.setAttribute("class", "crease-line");
@@ -757,7 +765,7 @@
 
         const hit = document.createElementNS("http://www.w3.org/2000/svg", "line");
         hit.setAttribute("y1", 0);
-        hit.setAttribute("y2", 420);
+        hit.setAttribute("y2", BOARD);
         hit.setAttribute("x1", x);
         hit.setAttribute("x2", x);
         hit.setAttribute("class", "crease-hit");
@@ -781,12 +789,13 @@
     }
 
     function renderBoard() {
-      renderGrid(board, CELL, 420);
+      renderGrid(board, CELL, BOARD);
       renderCreases();
-      renderPoints(board, state.target, CELL, "target", 10, 4);
-      renderPoints(board, state.points, CELL, "current", 8, 4);
+      const dotScale = CELL / 70;
+      renderPoints(board, state.target, CELL, "target", 10 * dotScale, 4 * dotScale);
+      renderPoints(board, state.points, CELL, "current", 8 * dotScale, 4 * dotScale);
       if (previewPoints) {
-        renderPoints(board, previewPoints, CELL, "ghost", 7, 4);
+        renderPoints(board, previewPoints, CELL, "ghost", 7 * dotScale, 4 * dotScale);
       }
 
       const activeCrease = playbackCrease || selectedCrease;
@@ -1078,23 +1087,17 @@
     }
 
     function buildRuthMessage(dateKey) {
-      const rng = mulberry32(hashStringToSeed(`ruth-note-${dateKey}`));
-      const thichQuotes = [
-        "The present moment is the only moment available to us, and it is the door to all moments.",
-        "Smile, breathe, and go slowly.",
-        "Drink your tea slowly and reverently, as if it is the axis on which the world earth revolves-slowly, evenly, without rushing toward the future.",
-        "The most precious gift we can offer others is our presence.",
-        "No mud, no lotus. Both are necessary for growth.",
-        "Because you are alive, everything is possible.",
-        "Hope is important because it can make the present moment less difficult to bear. If we believe that tomorrow will be better, we can bear a hardship today.",
-        "Sometimes your joy is the source of your smile, but sometimes your smile can be the source of your joy.",
-        "Walk as if you are kissing the Earth with your feet.",
-        "We are here to awaken from our illusion of separateness.",
-        "The seed of suffering in you may be strong, but do not wait until you have no more suffering before allowing yourself to be happy.",
-        "Breathing in, I calm body and mind. Breathing out, I smile.",
-      ];
-      const quote = randomChoice(rng, thichQuotes);
-      return `Ruth, good job! "${quote}" - Thich Nhat Hanh`;
+      const [year, month, day] = dateKey.split("-").map(Number);
+      const today = new Date(year, month - 1, day);
+      let birthdayYear = year;
+      const thisYearBday = new Date(year, 3, 29); // April 29
+      if (today > thisYearBday) birthdayYear = year + 1;
+      const birthday = new Date(birthdayYear, 3, 29);
+      const diffMs = birthday - today;
+      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+      if (diffDays === 0) return "Ruth, good job! Happy Birthday!";
+      if (diffDays === 1) return "Ruth, good job! Only 1 day until your birthday!";
+      return `Ruth, good job! ${diffDays} days until your birthday!`;
     }
 
     function addRuthNote(puzzles, dateKey) {
@@ -1212,37 +1215,58 @@
       }
     }
 
+    const dailyMetas = [
+      { difficulty: "easy", label: "Easy", par: 3, dots: 2, allowStack: true, size: 6 },
+      { difficulty: "medium", label: "Medium", par: 4, dots: 3, allowStack: true, size: 6 },
+      {
+        difficulty: "hard",
+        label: "Hard",
+        par: 5,
+        dots: 4,
+        allowStack: false,
+        size: 6,
+        maxAttempts: 8000,
+        altAttempts: 4000,
+      },
+      {
+        difficulty: "large",
+        label: "Large",
+        par: 4,
+        dots: 3,
+        allowStack: true,
+        size: 8,
+        maxAttempts: 2000,
+      },
+    ];
+
+    function generateOnePuzzle(meta, dateKey, rng) {
+      setGridSize(meta.size || 6);
+      const tries = 10;
+      for (let i = 0; i < tries; i += 1) {
+        const localSeed = hashStringToSeed(`${dateKey}-${meta.difficulty}-${i}`);
+        const localRng = mulberry32(localSeed);
+        const puzzle = generatePuzzle(localRng, meta, dateKey);
+        if (puzzleMatchesMeta(puzzle, meta)) {
+          puzzle.size = meta.size || 6;
+          return puzzle;
+        }
+      }
+      const fallbackPuzzle = generatePuzzle(rng, meta, dateKey);
+      if (puzzleMatchesMeta(fallbackPuzzle, meta)) {
+        fallbackPuzzle.size = meta.size || 6;
+        return fallbackPuzzle;
+      }
+      return null;
+    }
+
     function generateDailyPuzzles(fallback) {
       const dateKey = getDateKeyPST();
       const rng = mulberry32(hashStringToSeed(dateKey));
-      const metas = [
-        { difficulty: "easy", label: "Easy", par: 3, dots: 2, allowStack: true },
-        { difficulty: "medium", label: "Medium", par: 4, dots: 3, allowStack: true },
-        {
-          difficulty: "hard",
-          label: "Hard",
-          par: 5,
-          dots: 4,
-          allowStack: false,
-          maxAttempts: 8000,
-          altAttempts: 4000,
-        },
-      ];
 
-      const cached = loadCachedDaily(dateKey, metas);
+      const cached = loadCachedDaily(dateKey, dailyMetas);
       if (cached) return addRuthNote(cached, dateKey);
 
-      const daily = metas.map((meta) => {
-        const tries = 10;
-        for (let i = 0; i < tries; i += 1) {
-          const localSeed = hashStringToSeed(`${dateKey}-${meta.difficulty}-${i}`);
-          const localRng = mulberry32(localSeed);
-          const puzzle = generatePuzzle(localRng, meta, dateKey);
-          if (puzzleMatchesMeta(puzzle, meta)) return puzzle;
-        }
-        const fallbackPuzzle = generatePuzzle(rng, meta, dateKey);
-        return puzzleMatchesMeta(fallbackPuzzle, meta) ? fallbackPuzzle : null;
-      });
+      const daily = dailyMetas.map((meta) => generateOnePuzzle(meta, dateKey, rng));
       const missing = daily.some((puzzle) => !puzzle);
       if (!missing) {
         cacheDaily(dateKey, daily);
@@ -1252,9 +1276,52 @@
       const fallbackByDifficulty = new Map(
         fallback.map((puzzle) => [puzzle.difficulty, puzzle])
       );
-      const finalSet = metas.map((meta, idx) => daily[idx] || fallbackByDifficulty.get(meta.difficulty));
+      const finalSet = dailyMetas.map((meta, idx) => daily[idx] || fallbackByDifficulty.get(meta.difficulty));
       cacheDaily(dateKey, finalSet);
       return addRuthNote(finalSet, dateKey);
+    }
+
+    function generateDailyPuzzlesProgressive(fallback, onReady) {
+      const dateKey = getDateKeyPST();
+      const rng = mulberry32(hashStringToSeed(dateKey));
+
+      const cached = loadCachedDaily(dateKey, dailyMetas);
+      if (cached) {
+        const result = addRuthNote(cached, dateKey);
+        onReady(result);
+        return result;
+      }
+
+      const fallbackByDifficulty = new Map(
+        fallback.map((puzzle) => [puzzle.difficulty, puzzle])
+      );
+      const daily = [];
+
+      // Generate easy synchronously (fast — par 3, 1600 attempts max)
+      const easyMeta = dailyMetas[0];
+      const easyPuzzle = generateOnePuzzle(easyMeta, dateKey, rng) || fallbackByDifficulty.get("easy");
+      daily.push(easyPuzzle);
+      addRuthNote(daily, dateKey);
+      onReady(daily);
+
+      // Generate medium and hard asynchronously, yielding between each
+      let metaIdx = 1;
+      function generateNext() {
+        if (metaIdx >= dailyMetas.length) {
+          if (daily.every(Boolean)) cacheDaily(dateKey, daily);
+          return;
+        }
+        const meta = dailyMetas[metaIdx];
+        const puzzle = generateOnePuzzle(meta, dateKey, rng) || fallbackByDifficulty.get(meta.difficulty);
+        daily.push(puzzle);
+        addRuthNote(daily, dateKey);
+        onReady(daily);
+        metaIdx += 1;
+        setTimeout(generateNext, 0);
+      }
+      setTimeout(generateNext, 0);
+
+      return daily;
     }
 
     function watchForNewDay() {
@@ -1273,6 +1340,7 @@
         id: "easy-fallback",
         title: "Archive Easy",
         difficulty: "easy",
+        size: 6,
         start: [
           { x: 2, y: 3 },
           { x: 3, y: 3 },
@@ -1291,27 +1359,29 @@
         id: "medium-fallback",
         title: "Archive Medium",
         difficulty: "medium",
+        size: 6,
         start: [
-          { x: 6, y: 5 },
-          { x: 5, y: 5 },
-          { x: 6, y: 5 },
+          { x: 1, y: 2 },
+          { x: 3, y: 4 },
+          { x: 1, y: 2 },
         ],
         target: [
-          { x: 4, y: 3 },
-          { x: 3, y: 3 },
-          { x: 4, y: 3 },
+          { x: 4, y: 5 },
+          { x: 2, y: 3 },
+          { x: 4, y: 5 },
         ],
         solution: [
-          { type: "h", k: 3, dir: "up" },
-          { type: "h", k: 2, dir: "down" },
-          { type: "v", k: 3, dir: "left" },
           { type: "v", k: 2, dir: "right" },
+          { type: "h", k: 3, dir: "down" },
+          { type: "v", k: 4, dir: "left" },
+          { type: "h", k: 4, dir: "up" },
         ],
       },
       {
         id: "hard-fallback",
         title: "Archive Hard",
         difficulty: "hard",
+        size: 6,
         start: [
           { x: 5, y: 1 },
           { x: 1, y: 1 },
@@ -1332,18 +1402,60 @@
           { type: "v", k: 5, dir: "left" },
         ],
       },
+      {
+        id: "large-fallback",
+        title: "Archive Large",
+        difficulty: "large",
+        size: 8,
+        start: [
+          { x: 6, y: 5 },
+          { x: 5, y: 5 },
+          { x: 6, y: 5 },
+        ],
+        target: [
+          { x: 4, y: 3 },
+          { x: 3, y: 3 },
+          { x: 4, y: 3 },
+        ],
+        solution: [
+          { type: "h", k: 3, dir: "up" },
+          { type: "h", k: 2, dir: "down" },
+          { type: "v", k: 3, dir: "left" },
+          { type: "v", k: 2, dir: "right" },
+        ],
+      },
     ];
 
-    const puzzles = generateDailyPuzzles(fallbackPuzzles);
-    watchForNewDay();
+    let puzzles = [];
+    const puzzleById = new Map();
 
-    const puzzleById = new Map(puzzles.map((puzzle) => [puzzle.id, puzzle]));
+    function updatePuzzleIndex(list) {
+      puzzles = list;
+      puzzleById.clear();
+      list.forEach((p) => { if (p) puzzleById.set(p.id, p); });
+    }
+
+    generateDailyPuzzlesProgressive(fallbackPuzzles, (list) => {
+      const isFirst = puzzles.length === 0;
+      updatePuzzleIndex(list);
+      if (isFirst) {
+        newPuzzle();
+        initRules();
+      }
+      // Update difficulty buttons availability
+      easyBtn.disabled = !puzzleById.has(list[0]?.id);
+      mediumBtn.disabled = list.length < 2 || !list[1];
+      hardBtn.disabled = list.length < 3 || !list[2];
+      largeBtn.disabled = list.length < 4 || !list[3];
+    });
+    watchForNewDay();
 
     function buildPuzzle(puzzleId) {
       const def = puzzleById.get(puzzleId) || puzzles[0];
       return {
         title: def.title,
         difficulty: def.difficulty,
+        size: def.size || 6,
         start: def.start.map((p) => ({ ...p })),
         target: def.target.map((p) => ({ ...p })),
         par: def.solution.length,
@@ -1433,7 +1545,7 @@
     function setPlaybackMode(on) {
       isPlayback = on;
       playSolutionBtn.textContent = on ? "Stop" : "Auto play";
-      [resetBtn, undoBtn, rulesBtn, easyBtn, mediumBtn, hardBtn].forEach((el) => {
+      [resetBtn, undoBtn, rulesBtn, easyBtn, mediumBtn, hardBtn, largeBtn].forEach((el) => {
         el.disabled = on;
       });
       if (on) {
@@ -1550,6 +1662,7 @@
 
     function newPuzzle(puzzleId = puzzles[0].id) {
       const puzzle = buildPuzzle(puzzleId);
+      setGridSize(puzzle.size);
       difficulty = puzzle.difficulty;
       state = {
         title: puzzle.title,
@@ -1601,6 +1714,7 @@
       easyBtn.addEventListener("click", () => setDifficulty("easy"));
       mediumBtn.addEventListener("click", () => setDifficulty("medium"));
       hardBtn.addEventListener("click", () => setDifficulty("hard"));
+      largeBtn.addEventListener("click", () => setDifficulty("large"));
       solutionToggle.addEventListener("click", () => setSolutionOpen(!solutionOpen));
       stepSolutionBtn.addEventListener("click", () => {
         beginPlaybackSession();
@@ -1659,21 +1773,21 @@
     }
 
     function setDifficulty(level) {
-      const next = puzzles.find((puzzle) => puzzle.difficulty === level) || puzzles[0];
+      const next = puzzles.find((puzzle) => puzzle.difficulty === level);
+      if (!next) return;
       newPuzzle(next.id);
     }
 
     function setDifficultyButtons(level) {
-      const buttons = [easyBtn, mediumBtn, hardBtn];
+      const buttons = [easyBtn, mediumBtn, hardBtn, largeBtn];
       buttons.forEach((btn) => btn.classList.remove("active"));
       if (level === "easy") easyBtn.classList.add("active");
       if (level === "medium") mediumBtn.classList.add("active");
       if (level === "hard") hardBtn.classList.add("active");
+      if (level === "large") largeBtn.classList.add("active");
     }
 
     bindEvents();
-    newPuzzle();
-    initRules();
   </script>
 </body>
 </html>
