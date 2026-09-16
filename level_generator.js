@@ -1,301 +1,150 @@
-const GRID_SIZE = 6;
-
-function getDateKeyPST(date = new Date()) {
-  const fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Los_Angeles",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  return fmt.format(date);
-}
-
-function hashStringToSeed(str) {
-  let hash = 2166136261;
-  for (let i = 0; i < str.length; i += 1) {
-    hash ^= str.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
-
-function mulberry32(seed) {
-  return function () {
-    let t = (seed += 0x6d2b79f5);
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function randomInt(rng, min, max) {
-  return Math.floor(rng() * (max - min + 1)) + min;
-}
-
-function randomChoice(rng, items) {
-  return items[randomInt(rng, 0, items.length - 1)];
-}
-
-function pointsKey(points) {
-  return points
-    .map((p) => `${p.x},${p.y}`)
-    .sort()
-    .join("|");
-}
-
-function distinctCount(points) {
-  return new Set(points.map((p) => `${p.x},${p.y}`)).size;
-}
-
-function reflectPoint(p, crease) {
-  if (crease.type === "h") {
-    if (crease.dir === "down" && p.y <= crease.k) {
-      return { x: p.x, y: 2 * crease.k + 1 - p.y };
-    }
-    if (crease.dir === "up" && p.y >= crease.k + 1) {
-      return { x: p.x, y: 2 * crease.k + 1 - p.y };
-    }
-    return p;
-  }
-
-  if (crease.dir === "right" && p.x <= crease.k) {
-    return { x: 2 * crease.k + 1 - p.x, y: p.y };
-  }
-  if (crease.dir === "left" && p.x >= crease.k + 1) {
-    return { x: 2 * crease.k + 1 - p.x, y: p.y };
-  }
-  return p;
-}
-
-function applyFold(points, crease) {
-  let moved = false;
-  const next = points.map((p) => {
-    const rp = reflectPoint(p, crease);
-    if (rp.x !== p.x || rp.y !== p.y) moved = true;
-    if (rp.x < 1 || rp.x > GRID_SIZE || rp.y < 1 || rp.y > GRID_SIZE) return null;
-    return rp;
-  });
-  if (!moved) return null;
-  if (next.some((p) => p === null)) return null;
-  return next;
-}
-
-function allFolds() {
-  const folds = [];
-  for (let k = 1; k < GRID_SIZE; k += 1) {
-    folds.push({ type: "h", k, dir: "down" });
-    folds.push({ type: "h", k, dir: "up" });
-    folds.push({ type: "v", k, dir: "right" });
-    folds.push({ type: "v", k, dir: "left" });
-  }
-  return folds;
-}
-
-function findShortestPath(start, target, maxDepth) {
-  const targetKey = pointsKey(target);
-  const startKey = pointsKey(start);
-  if (startKey === targetKey) return [];
-
-  const folds = allFolds();
-  const visited = new Set([startKey]);
-  const queue = [{ points: start, path: [] }];
-  let idx = 0;
-
-  while (idx < queue.length) {
-    const { points, path } = queue[idx];
-    idx += 1;
-    if (path.length >= maxDepth) continue;
-
-    for (const fold of folds) {
-      const next = applyFold(points, fold);
-      if (!next) continue;
-      const key = pointsKey(next);
-      if (visited.has(key)) continue;
-      const nextPath = [...path, fold];
-      if (key === targetKey) return nextPath;
-      visited.add(key);
-      queue.push({ points: next, path: nextPath });
-    }
-  }
-  return null;
-}
-
-function randomPoints(rng, count) {
-  const points = [];
-  for (let i = 0; i < count; i += 1) {
-    points.push({ x: randomInt(rng, 1, GRID_SIZE), y: randomInt(rng, 1, GRID_SIZE) });
-  }
-  return points;
-}
-
-function randomPointsUnique(rng, count) {
-  const points = [];
-  const used = new Set();
-  while (points.length < count) {
-    const p = { x: randomInt(rng, 1, GRID_SIZE), y: randomInt(rng, 1, GRID_SIZE) };
-    const key = `${p.x},${p.y}`;
-    if (used.has(key)) continue;
-    used.add(key);
-    points.push(p);
-  }
-  return points;
-}
-
-function randomPointsForMeta(rng, meta) {
-  return meta.allowStack
-    ? randomPoints(rng, meta.dots)
-    : randomPointsUnique(rng, meta.dots);
-}
-
-function themeForDate(dateKey) {
-  const themes = [
-    "Headlines",
-    "Ticker",
-    "Dateline",
-    "Byline",
-    "Front Page",
-    "Crossword",
-    "Edition",
-    "Press",
-    "Column",
-    "Deadline",
-    "Dispatch",
-    "Scoop",
-    "Journal",
-    "Gazette",
-    "Courier",
-    "Ledger",
-    "Bulletin",
-    "Notebook",
-    "Newsroom",
-    "Spotlight",
-  ];
-  const rng = mulberry32(hashStringToSeed(`theme-${dateKey}`));
-  return randomChoice(rng, themes);
-}
-
-function formatDailyTitle(theme, label) {
-  return `${theme} ${label}`;
-}
-
-function generatePuzzle(rng, meta, dateKey) {
-  const folds = allFolds();
-  const maxAttempts = meta.maxAttempts || 1600;
-  const altAttempts = meta.altAttempts || 0;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const target = randomPointsForMeta(rng, meta);
-    const targetDistinct = distinctCount(target);
-    if (!meta.allowStack && targetDistinct !== meta.dots) continue;
-    if (meta.allowStack && meta.dots > 1 && targetDistinct < 2) continue;
-    let start = target.map((p) => ({ ...p }));
-
-    for (let i = 0; i < meta.par; i += 1) {
-      const fold = folds[randomInt(rng, 0, folds.length - 1)];
-      const next = applyFold(start, fold);
-      if (!next) {
-        i -= 1;
-        continue;
-      }
-      start = next;
-    }
-
-    const startDistinct = distinctCount(start);
-    if (pointsKey(start) === pointsKey(target)) continue;
-    if (!meta.allowStack && startDistinct !== meta.dots) continue;
-    if (meta.allowStack && meta.dots > 1 && startDistinct < 2) continue;
-
-    const solution = findShortestPath(start, target, meta.par);
-    if (solution && solution.length === meta.par) {
-      const theme = themeForDate(dateKey);
-      return {
-        id: `${meta.difficulty}-${dateKey}`,
-        title: formatDailyTitle(theme, meta.label),
-        difficulty: meta.difficulty,
-        start,
-        target,
-        solution,
-      };
-    }
-  }
-
-  for (let attempt = 0; attempt < altAttempts; attempt += 1) {
-    const target = randomPointsForMeta(rng, meta);
-    const start = randomPointsForMeta(rng, meta);
-    if (pointsKey(start) === pointsKey(target)) continue;
-    const targetDistinct = distinctCount(target);
-    const startDistinct = distinctCount(start);
-    if (!meta.allowStack) {
-      if (targetDistinct !== meta.dots || startDistinct !== meta.dots) continue;
-    } else if (meta.dots > 1 && (targetDistinct < 2 || startDistinct < 2)) {
-      continue;
-    }
-
-    const solution = findShortestPath(start, target, meta.par);
-    if (solution && solution.length === meta.par) {
-      const theme = themeForDate(dateKey);
-      return {
-        id: `${meta.difficulty}-${dateKey}`,
-        title: formatDailyTitle(theme, meta.label),
-        difficulty: meta.difficulty,
-        start,
-        target,
-        solution,
-      };
-    }
-  }
-  return null;
-}
-
-function puzzleMatchesMeta(puzzle, meta) {
-  if (!puzzle) return false;
-  if (puzzle.solution.length !== meta.par) return false;
-  if (puzzle.start.length !== meta.dots || puzzle.target.length !== meta.dots) return false;
-  if (!meta.allowStack) {
-    if (distinctCount(puzzle.start) !== meta.dots) return false;
-    if (distinctCount(puzzle.target) !== meta.dots) return false;
-  }
-  return true;
-}
-
-function generateDailySet(date = new Date()) {
-  const dateKey = getDateKeyPST(date);
-  const rng = mulberry32(hashStringToSeed(dateKey));
+/* Shared by the page, its worker, and the offline validation tools. */
+(function (root) {
+  'use strict';
   const metas = [
-    { difficulty: "easy", label: "Easy", par: 3, dots: 2, allowStack: true },
-    { difficulty: "medium", label: "Medium", par: 4, dots: 3, allowStack: true },
-    {
-      difficulty: "hard",
-      label: "Hard",
-      par: 5,
-      dots: 4,
-      allowStack: false,
-      maxAttempts: 8000,
-      altAttempts: 4000,
-    },
+    { difficulty: 'easy', label: 'Easy', par: 3, dots: 2, allowStack: true, size: 6 },
+    { difficulty: 'medium', label: 'Medium', par: 4, dots: 3, allowStack: true, size: 6 },
+    { difficulty: 'hard', label: 'Hard', par: 5, dots: 4, allowStack: false, size: 6 },
+    { difficulty: 'large', label: 'Large', par: 4, dots: 3, allowStack: true, size: 8 },
+    { difficulty: 'limited', label: 'Limited Creases', par: 4, dots: 3, allowStack: true, size: 6, creaseCount: 4 },
   ];
-
-  return metas.map((meta) => {
-    const tries = 10;
-    for (let i = 0; i < tries; i += 1) {
-      const localSeed = hashStringToSeed(`${dateKey}-${meta.difficulty}-${i}`);
-      const localRng = mulberry32(localSeed);
-      const puzzle = generatePuzzle(localRng, meta, dateKey);
-      if (puzzleMatchesMeta(puzzle, meta)) return puzzle;
+  function random(seed) {
+    let hash = 2166136261;
+    for (const c of seed) hash = Math.imul(hash ^ c.charCodeAt(0), 16777619);
+    return () => {
+      let t = (hash += 0x6d2b79f5);
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function foldsFor(size) {
+    const folds = [];
+    for (let k = 1; k < size; k++) {
+      for (const [type, dir] of [['h', 'down'], ['h', 'up'], ['v', 'right'], ['v', 'left']]) {
+        folds.push({type, k, dir});
+      }
     }
-    const fallbackPuzzle = generatePuzzle(rng, meta, dateKey);
-    return puzzleMatchesMeta(fallbackPuzzle, meta) ? fallbackPuzzle : null;
-  });
-}
-
-if (require.main === module) {
-  const daily = generateDailySet();
-  console.log(JSON.stringify(daily, null, 2));
-}
-
-module.exports = {
-  generateDailySet,
-  generatePuzzle,
-  findShortestPath,
-  applyFold,
-};
+    return folds;
+  }
+  function isCreaseAllowed(puzzle, crease) {
+    return !puzzle.allowedCreases || puzzle.allowedCreases.some(c => c.type === crease.type && c.k === crease.k);
+  }
+  function shuffle(items, rng) {
+    const result = [...items];
+    for (let i = result.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+  }
+  function applyFold(points, fold, size = 6) {
+    let moved = false;
+    const next = points.map(({x, y}) => {
+      if (fold.type === 'h' && ((fold.dir === 'down' && y <= fold.k) || (fold.dir === 'up' && y > fold.k))) {
+        y = 2 * fold.k + 1 - y; moved = true;
+      }
+      if (fold.type === 'v' && ((fold.dir === 'right' && x <= fold.k) || (fold.dir === 'left' && x > fold.k))) {
+        x = 2 * fold.k + 1 - x; moved = true;
+      }
+      return {x, y};
+    });
+    return moved && next.every(p => p.x >= 1 && p.y >= 1 && p.x <= size && p.y <= size) ? next : null;
+  }
+  const key = points => points.map(p => `${p.x},${p.y}`).sort().join('|');
+  function validPuzzle(puzzle, meta) {
+    if (!puzzle || puzzle.size !== meta.size || !Array.isArray(puzzle.solution) || puzzle.solution.length !== meta.par) return false;
+    if (meta.creaseCount) {
+      const creases = puzzle.allowedCreases;
+      if (!Array.isArray(creases) || creases.length !== meta.creaseCount || !creases.every(c => c && ['h','v'].includes(c.type) && Number.isInteger(c.k) && c.k >= 1 && c.k < meta.size)) return false;
+      if (new Set(creases.map(c => `${c.type}${c.k}`)).size !== meta.creaseCount) return false;
+      if (!['h','v'].every(type => creases.some(c => c.type === type))) return false;
+    } else if (puzzle.allowedCreases != null) return false;
+    for (const points of [puzzle.start, puzzle.target]) {
+      if (!Array.isArray(points) || points.length !== meta.dots) return false;
+      if (!points.every(p => p && Number.isInteger(p.x) && Number.isInteger(p.y) && p.x >= 1 && p.y >= 1 && p.x <= meta.size && p.y <= meta.size)) return false;
+      if (!meta.allowStack && new Set(points.map(p => `${p.x},${p.y}`)).size !== meta.dots) return false;
+    }
+    if (key(puzzle.start) === key(puzzle.target)) return false;
+    let points = puzzle.start;
+    for (const fold of puzzle.solution) {
+      if (!fold || !Number.isInteger(fold.k) || fold.k < 1 || fold.k >= meta.size || !(fold.type === 'h' ? ['up','down'] : fold.type === 'v' ? ['left','right'] : []).includes(fold.dir)) return false;
+      if (!isCreaseAllowed(puzzle, fold)) return false;
+      points = applyFold(points, fold, meta.size);
+      if (!points) return false;
+    }
+    return key(points) === key(puzzle.target);
+  }
+  function generatePuzzle(meta, seed) {
+    const rng = random(`${seed}-${meta.difficulty}-v3`);
+    const size = meta.size;
+    const folds = shuffle(foldsFor(size), rng);
+    // Precompute each cell's destination once. Integer states preserve stacked dots.
+    const maps = folds.map(fold => Array.from({length: size * size}, (_, cell) => {
+      const p = {x: cell % size + 1, y: Math.floor(cell / size) + 1};
+      const next = applyFold([p], fold, size);
+      if (next) return (next[0].y - 1) * size + next[0].x - 1;
+      const moving = fold.type === 'h' ? (fold.dir === 'down' ? p.y <= fold.k : p.y > fold.k) : (fold.dir === 'right' ? p.x <= fold.k : p.x > fold.k);
+      return moving ? -1 : cell;
+    }));
+    const decode = cells => cells.map(cell => ({x: cell % size + 1, y: Math.floor(cell / size) + 1}));
+    for (let attempt = 0; attempt < 32; attempt++) {
+      const allowedCreases = meta.creaseCount ? ['h','v'].flatMap(type =>
+        shuffle(Array.from({length:size - 1}, (_, i) => ({type, k:i + 1})), rng).slice(0, meta.creaseCount / 2)) : null;
+      const foldIndices = folds.map((_, i) => i).filter(i => isCreaseAllowed({allowedCreases}, folds[i]));
+      const start = [];
+      while (start.length < meta.dots) {
+        const cell = Math.floor(rng() * size * size);
+        if (!start.includes(cell)) start.push(cell);
+      }
+      start.sort((a,b) => a-b);
+      const queue = [{cells: start, depth: 0, parent: -1, fold: -1}];
+      const visited = new Set([start.join(',')]);
+      let chosen = null, candidateCount = 0;
+      // One breadth-first search constructs reachable targets and proves their par.
+      // Bound work by state count, not elapsed time, so daily puzzles stay deterministic.
+      for (let head = 0; head < queue.length && visited.size < 24000; head++) {
+        const node = queue[head];
+        if (node.depth >= meta.par) continue;
+        for (const f of foldIndices) {
+          const cells = node.cells.map(cell => maps[f][cell]);
+          if (cells.includes(-1)) continue;
+          cells.sort((a,b) => a-b);
+          const distinct = new Set(cells).size;
+          // Merged dots cannot separate, so they cannot lead to a non-stacked target.
+          if ((!meta.allowStack && distinct !== meta.dots) || distinct < 2) continue;
+          const stateKey = cells.join(',');
+          if (visited.has(stateKey)) continue;
+          visited.add(stateKey);
+          const nextNode = {cells, depth: node.depth + 1, parent: head, fold: f};
+          if (nextNode.depth === meta.par) {
+            // Reservoir sampling considers the whole final frontier, avoiding a preference
+            // for the first targets discovered. Final states need no queue allocation.
+            candidateCount++;
+            if (rng() < 1 / candidateCount) chosen = nextNode;
+          } else queue.push(nextNode);
+        }
+      }
+      if (!chosen) continue;
+      const target = decode(chosen.cells);
+      const solution = [folds[chosen.fold]];
+      let index = chosen.parent;
+      while (queue[index].parent !== -1) {
+        solution.push(folds[queue[index].fold]);
+        index = queue[index].parent;
+      }
+      solution.reverse();
+      return {id: `${meta.difficulty}-${seed}`, title: `Daily ${meta.label}`, difficulty: meta.difficulty, size, start: decode(start), target, solution, ...(allowedCreases ? {allowedCreases} : {})};
+    }
+    return null;
+  }
+  function generateDailySet(date = new Date()) {
+    const seed = new Intl.DateTimeFormat('en-CA', {timeZone: 'America/Los_Angeles', year:'numeric', month:'2-digit', day:'2-digit'}).format(date);
+    return metas.map(meta => generatePuzzle(meta, seed));
+  }
+  const api = {metas, generatePuzzle, generateDailySet, applyFold, validPuzzle, isCreaseAllowed};
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = api;
+    if (require.main === module) console.log(JSON.stringify(generateDailySet(), null, 2));
+  } else root.FoldGenerator = api;
+})(globalThis);

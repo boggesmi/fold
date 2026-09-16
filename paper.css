@@ -1,0 +1,113 @@
+:root {
+  --paper: #fffdf8;
+  --ink: #354c43;
+  --muted: #73776c;
+  --line: #deded0;
+  --accent: #a75f45;
+  --bg1: #f5f2e9;
+  --bg2: #eaeede;
+  --shadow: rgba(63, 76, 52, .055);
+  --success: #42654b;
+}
+body {
+  background: radial-gradient(ellipse at 5% 5%, #e6ebda 0, transparent 48%), radial-gradient(ellipse at 95% 85%, #f0dfcd 0, transparent 48%), #f5f2e9;
+  font-family: 'Avenir Next', 'Trebuchet MS', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.page { max-width: 1060px; padding: 42px 36px 54px; gap: 24px; }
+.nyt-bar { font-family: inherit; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); gap: 12px; }
+.paper-mark { width: 23px; height: 24px; display: inline-block; background: linear-gradient(135deg, #aebc96 49%, #617962 50%); clip-path: polygon(0 0,100% 0,100% 100%,20% 80%); transform: rotate(-9deg); }
+header { align-items: center; }
+.title { font-size: clamp(56px, 7vw, 78px); line-height: 1.1; font-weight: 400; letter-spacing: -.045em; }
+.subtitle { margin-top: 9px; font-size: 11px; letter-spacing: .18em; }
+.controls { max-width: 430px; justify-content: flex-end; gap: 9px; }
+.difficulty { width: 100%; justify-content: flex-end; gap: 5px; margin-bottom: 4px; }
+button { background: #fffcf5; border-radius: 7px; font-family: inherit; min-height: 40px; padding: 9px 15px; }
+button:hover { border-color: #9aaa91; box-shadow: 0 3px 8px var(--shadow); }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
+button:disabled { transform: none; }
+.difficulty button { letter-spacing: .07em; font-size: 11px; padding: 9px 15px; }
+.difficulty button.active, .primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.edition-line { border-top: 1px solid #cbd1bf; padding-top: 15px; display: flex; justify-content: space-between; gap: 14px; font-size: 12px; color: var(--muted); }
+.layout { grid-template-columns: minmax(0, 1fr) 290px; gap: 30px; justify-items: stretch; }
+.panel { border-radius: 9px; padding: 24px; box-shadow: 0 6px 22px var(--shadow); }
+.game-panel { width: 100%; gap: 18px; position: relative; }
+.game-panel::after { content: ''; position: absolute; top: -1px; right: -1px; width: 25px; height: 25px; background: linear-gradient(45deg, #e6e8da 49%, #f3f1e6 50%); border-bottom-left-radius: 5px; }
+.status { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.puzzle-heading { display: grid; gap: 6px; }
+.puzzle-heading strong { font-family: Georgia, serif; font-size: 23px; font-weight: 400; }
+.eyebrow { text-transform: uppercase; letter-spacing: .13em; font-size: 9px; color: var(--muted); }
+.score { display: flex; gap: 16px; align-items: center; font-size: 11px; }
+.score > span { display: grid; gap: 4px; text-align: center; }
+.score strong { font-size: 22px; font-weight: 500; }
+.board-title { font-size: 10px; letter-spacing: .07em; text-transform: none; }
+#board { max-width: 420px; border-radius: 5px; background: #f9faf3; }
+.dot.current, .dot.stack { fill: #496954; }
+.dot.target { stroke: #a96549; stroke-width: 2.3; opacity: .85; }
+.dot.ghost { fill: #a96549; opacity: .45; }
+.crease-line { stroke: #c7d0bc; }
+.crease-active { stroke: #a96549; }
+.board-legend { display: flex; justify-content: center; gap: 24px; color: var(--muted); font-size: 11px; }
+.board-legend span { display: inline-flex; gap: 8px; align-items: center; }
+.board-legend i { width: 10px; height: 10px; display: inline-block; border-radius: 50%; }
+.legend-dot { background: #496954; }
+.legend-ring { border: 2px solid #a96549; }
+.solution { padding: 13px 15px; box-shadow: none; background: #f6f6ed; }
+.solution-toggle { width: 100%; padding: 0; border: 0; background: none; min-height: 26px; font-size: 12px; text-align: left; }
+.solution-toggle:hover { box-shadow: none; transform: none; }
+.solution-toggle span { font-size: 9px; }
+.side-notes { display: grid; gap: 20px; padding-top: 14px; }
+.practice-card { background: #edf0e3; border-color: #dce1ce; }
+.practice-card h2 { font: 400 29px/1.15 Georgia, serif; margin: 14px 0; letter-spacing: -.04em; }
+.practice-card p { color: #657160; font-size: 13px; line-height: 1.75; margin: 0 0 20px; }
+.practice-card button { width: 100%; margin-bottom: 9px; font-size: 12px; }
+.practice-card .loading-status { font-size: 10px; margin: 8px 0 0; line-height: 1.5; }
+.how-card { background: #f9f6ee; box-shadow: none; }
+.rule-card { font-size: 12px; line-height: 1.6; gap: 10px; }
+.rule-card strong { font: 400 20px Georgia, serif; padding-bottom: 5px; }
+.paper-caption { color: #7c836f; text-align: center; font: italic 14px Georgia, serif; padding: 8px 0; }
+.direction-panel { padding: 10px; box-shadow: none; }
+.direction-panel button { background: #eef1e6; box-shadow: none; }
+.modal { background: rgba(45, 58, 43, .3); backdrop-filter: blur(5px); }
+.modal-card { box-shadow: 0 24px 70px #354c4320; border-radius: 12px; line-height: 1.6; max-height: calc(100dvh - 40px); overflow: auto; }
+#startBtn, #closeWinBtn { background: var(--ink); color: var(--paper); }
+@media (max-width: 760px) {
+  .page { padding: 25px 18px 32px; gap: 20px; }
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  header { gap: 23px; }
+  .controls { max-width: none; width: 100%; justify-content: flex-start; }
+  .difficulty { width: auto; justify-content: flex-start; margin: 0; }
+  .difficulty button { padding: 8px 11px; }
+  .controls > button { font-size: 12px; padding: 8px 11px; }
+  .game-panel { max-width: 560px; margin: auto; padding: 20px 16px; }
+  .side-notes { grid-template-columns: 1fr 1fr; padding: 0; gap: 14px; }
+  .side-notes .panel { padding: 20px; }
+  .paper-caption { grid-column: 1 / -1; }
+  #board { max-width: 420px; }
+  .edition-line { font-size: 10px; }
+}
+@media (max-width: 460px) {
+  .side-notes { grid-template-columns: 1fr; }
+  .edition-line span:last-child { display: none; }
+  .puzzle-heading strong { font-size: 21px; }
+  .score { gap: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+/* Limited Creases uses the same paper grid, with only its permitted folds inked. */
+.crease-available { stroke: #77916c; stroke-width: 2.5; stroke-dasharray: 7 5; }
+.crease-unavailable { stroke: #deded0; stroke-width: .7; stroke-dasharray: none; opacity: .5; }
+.crease-hit:focus-visible { stroke: #a9654980; outline: none; }
+.crease-hint { margin: 0; color: #49634b; font-size: 11px; line-height: 1.6; text-align: center; }
+@media (max-width: 460px) {
+  .difficulty { width: 100%; gap: 4px; }
+  .difficulty button { flex: 1; padding: 8px 6px; font-size: 10px; }
+  .puzzle-heading strong { font-size: 20px; }
+}
+
+.celebrate .ruth-note { padding: 22px 18px; border: 1px solid #dce1ce; background: #f2f4e9; border-radius: 8px; }
+.note-label { display: block; color: #63715c; font-family: 'Avenir Next', sans-serif; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+#winRuthNote { white-space: pre-line; font: 400 18px/1.65 Georgia, serif; color: #354c43; margin: 12px 0 0; }
+.poem #winRuthNote { font-style: italic; }
+.birthday-note { color: #68725e; font-size: 13px; margin: 0; }

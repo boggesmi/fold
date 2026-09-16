@@ -480,19 +480,20 @@
       svg { max-width: 360px; }
     }
   </style>
+  <link rel="stylesheet" href="paper.css" />
 </head>
 <body>
   <div class="page">
     <div class="masthead">
       <div class="nyt-bar">
-        <span class="nyt-mark">T</span>
-        <span>Games</span>
+        <span class="paper-mark" aria-hidden="true"></span>
+        <span>A little paper, a little possibility</span>
       </div>
     </div>
     <header>
       <div>
         <h1 class="title">Fold</h1>
-        <p class="subtitle">Above and below the centerfold</p>
+        <p class="subtitle">Let the day unfold</p>
       </div>
       <div class="controls">
         <div class="difficulty" aria-label="Difficulty">
@@ -500,6 +501,7 @@
           <button id="mediumBtn">Medium</button>
           <button id="hardBtn">Hard</button>
           <button id="largeBtn">Large</button>
+          <button id="limitedBtn">Limited</button>
         </div>
         <button id="resetBtn">Reset</button>
         <button id="undoBtn">Undo</button>
@@ -507,29 +509,30 @@
       </div>
     </header>
 
+    <div class="edition-line"><span id="editionDate"></span><span>Take your time. Find your fold.</span></div>
     <div class="layout">
       <section class="panel game-panel">
         <div class="status">
-          <div><strong>Puzzle:</strong> <span id="puzzleTitle">-</span></div>
-          <div><strong>Goal:</strong> Match the target constellation.</div>
-          <div><strong>Par:</strong> <span id="par">-</span> folds</div>
-          <div><strong>Moves:</strong> <span id="moves">0</span> <span id="winText"></span></div>
+          <div class="puzzle-heading"><span class="eyebrow">Your quiet challenge</span><strong id="puzzleTitle">Preparing your paper…</strong></div>
+          <div class="score"><span>Par <strong id="par">–</strong></span><span>Folds <strong id="moves">0</strong></span><span id="winText"></span></div>
         </div>
 
         <div class="board-wrap">
-          <div class="board-title">Your Fold</div>
+          <div class="board-title">Bring the dots home to their rings</div>
+          <p id="creaseHint" class="crease-hint" hidden></p>
           <svg id="board" viewBox="0 0 420 420" aria-label="Fold board"></svg>
         </div>
 
+        <div class="board-legend"><span><i class="legend-dot"></i>Your dots</span><span><i class="legend-ring"></i>Target rings</span></div>
         <div class="direction-panel panel" id="directionPanel" style="display:none;">
           <button id="dirA"></button>
           <button id="dirB"></button>
         </div>
         <div class="solution panel">
-          <div class="solution-toggle" id="solutionToggle">
+          <button class="solution-toggle" id="solutionToggle" aria-expanded="false" aria-controls="solutionContent">
             Solution
             <span id="solutionHint">Tap to show</span>
-          </div>
+          </button>
           <div class="solution-content" id="solutionContent">
             <div class="solution-actions">
               <button id="stepSolutionBtn">Next step</button>
@@ -540,17 +543,29 @@
         </div>
       </section>
 
-      <section class="panel">
+      <aside class="side-notes">
+      <section class="panel practice-card">
+        <span class="eyebrow">A little more room to play</span>
+        <h2>Keep unfolding.</h2>
+        <p>Five fresh challenges each day. Want another? Make a new puzzle at your current difficulty.</p>
+        <button id="freshBtn" class="primary" disabled>Fresh puzzle</button>
+        <button id="dailyBtn" disabled>Back to daily</button>
+        <p id="loadingStatus" class="loading-status" role="status">Preparing daily puzzles…</p>
+      </section>
+      <section class="panel how-card">
         <div class="rule-card">
           <strong>How it works</strong>
           <div>Select a crease line. Choose a fold direction. Dots reflect across the crease.</div>
           <div>Stacked dots merge visually but still count.</div>
-          <div>To unstack, fold the same crease back in the opposite direction.</div>
+          <div>Stacked dots stay together. Use Undo to separate an accidental stack.</div>
           <div>Arrow keys fold from the selected crease (or the center crease).</div>
-          <div>Larger dots mean two dots stacked (double targets are larger rings).</div>
+          <div>Larger dots and rings show how many dots are stacked.</div>
           <div>Match every target dot to win.</div>
+          <div>Limited Creases: only the four highlighted lines can fold.</div>
         </div>
       </section>
+      <div class="paper-caption">Small moves. New perspectives.</div>
+      </aside>
     </div>
   </div>
 
@@ -560,7 +575,7 @@
       <ul>
         <li>Click a crease line on the board and choose a direction.</li>
         <li>Dots reflect across the crease and can stack.</li>
-        <li>Larger dots indicate a double (two dots stacked on one spot).</li>
+        <li>Larger dots indicate a stack. Stacked dots move together; Undo reverses a move.</li>
         <li>Match the target constellation in as few folds as possible.</li>
       </ul>
       <div class="demo">
@@ -589,15 +604,18 @@
       <div class="confetti" aria-hidden="true">
         <span></span><span></span><span></span><span></span>
       </div>
-      <h2>Nice fold.</h2>
+      <h2 id="winHeading">Well done, Ruth.</h2>
       <div>You matched the constellation.</div>
-      <div class="ruth-note" id="winRuthNoteWrap"><strong>Daily Note:</strong> <span id="winRuthNote">-</span></div>
+      <div class="ruth-note" id="winRuthNoteWrap"><span class="note-label">A little note for you</span><p id="winRuthNote"></p></div>
+      <p id="winBirthdayNote" class="birthday-note" hidden></p>
       <div class="modal-actions">
         <button id="closeWinBtn">Keep folding</button>
       </div>
     </div>
   </div>
 
+  <script src="level_generator.js"></script>
+  <script src="personal_messages.js"></script>
   <script>
     const BOARD = 420;
     let SIZE = 6;
@@ -614,6 +632,8 @@
     const puzzleTitleEl = document.getElementById("puzzleTitle");
     const winRuthNoteWrapEl = document.getElementById("winRuthNoteWrap");
     const winRuthNoteEl = document.getElementById("winRuthNote");
+    const winHeadingEl = document.getElementById("winHeading");
+    const winBirthdayNoteEl = document.getElementById("winBirthdayNote");
     const solutionList = document.getElementById("solutionList");
     const solutionToggle = document.getElementById("solutionToggle");
     const solutionContent = document.getElementById("solutionContent");
@@ -631,6 +651,9 @@
     const mediumBtn = document.getElementById("mediumBtn");
     const hardBtn = document.getElementById("hardBtn");
     const largeBtn = document.getElementById("largeBtn");
+    const limitedBtn = document.getElementById("limitedBtn");
+    const freshBtn = document.getElementById("freshBtn");
+    const dailyBtn = document.getElementById("dailyBtn");
 
     const rulesModal = document.getElementById("rulesModal");
     const winModal = document.getElementById("winModal");
@@ -647,6 +670,7 @@
     let solutionOpen = false;
     let isPlayback = false;
     let playbackTimer = null;
+    let playbackEndTimer = null;
     let playbackIndex = 0;
     let playbackSnapshot = null;
     let solutionItems = [];
@@ -698,8 +722,7 @@
     }
 
     function foldValid(points, crease) {
-      const next = applyFold(points, crease);
-      return next.every((p) => p.x >= 1 && p.x <= SIZE && p.y >= 1 && p.y <= SIZE);
+      return !!state && FoldGenerator.isCreaseAllowed(state, crease) && !!FoldGenerator.applyFold(points, crease, SIZE);
     }
 
     function renderGrid(svg, cell, viewSize) {
@@ -728,49 +751,24 @@
     }
 
     function renderCreases() {
-      for (let k = 1; k < SIZE; k += 1) {
-        const y = k * CELL;
+      for (const type of ['h', 'v']) for (let k = 1; k < SIZE; k++) {
+        const allowed = FoldGenerator.isCreaseAllowed(state, {type, k});
         const crease = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        crease.setAttribute("x1", 0);
-        crease.setAttribute("x2", BOARD);
-        crease.setAttribute("y1", y);
-        crease.setAttribute("y2", y);
-        crease.setAttribute("class", "crease-line");
-        crease.dataset.type = "h";
+        const horizontal = type === 'h';
+        crease.setAttribute('x1', horizontal ? 0 : k * CELL);
+        crease.setAttribute('x2', horizontal ? BOARD : k * CELL);
+        crease.setAttribute('y1', horizontal ? k * CELL : 0);
+        crease.setAttribute('y2', horizontal ? k * CELL : BOARD);
+        crease.setAttribute('class', `crease-line${state.allowedCreases ? (allowed ? ' crease-available' : ' crease-unavailable') : ''}`);
+        crease.dataset.type = type;
         crease.dataset.k = String(k);
         board.appendChild(crease);
-
-        const hit = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        hit.setAttribute("x1", 0);
-        hit.setAttribute("x2", BOARD);
-        hit.setAttribute("y1", y);
-        hit.setAttribute("y2", y);
-        hit.setAttribute("class", "crease-hit");
-        hit.dataset.type = "h";
-        hit.dataset.k = String(k);
-        board.appendChild(hit);
-      }
-
-      for (let k = 1; k < SIZE; k += 1) {
-        const x = k * CELL;
-        const crease = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        crease.setAttribute("y1", 0);
-        crease.setAttribute("y2", BOARD);
-        crease.setAttribute("x1", x);
-        crease.setAttribute("x2", x);
-        crease.setAttribute("class", "crease-line");
-        crease.dataset.type = "v";
-        crease.dataset.k = String(k);
-        board.appendChild(crease);
-
-        const hit = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        hit.setAttribute("y1", 0);
-        hit.setAttribute("y2", BOARD);
-        hit.setAttribute("x1", x);
-        hit.setAttribute("x2", x);
-        hit.setAttribute("class", "crease-hit");
-        hit.dataset.type = "v";
-        hit.dataset.k = String(k);
+        if (!allowed) continue;
+        const hit = crease.cloneNode();
+        hit.setAttribute('class', 'crease-hit');
+        hit.setAttribute('role', 'button');
+        hit.setAttribute('tabindex', '0');
+        hit.setAttribute('aria-label', `Select ${horizontal ? 'row' : 'column'} ${k} crease`);
         board.appendChild(hit);
       }
     }
@@ -821,6 +819,7 @@
     }
 
     function showDirections(crease) {
+      if (!state || isPlayback || !FoldGenerator.isCreaseAllowed(state, crease)) return;
       selectedCrease = crease;
       const options = [];
       if (crease.type === "h") {
@@ -866,7 +865,7 @@
     }
 
     function handleArrowFold(dir) {
-      if (isPlayback) return;
+      if (!state || isPlayback) return;
       const axisMatch =
         selectedCrease &&
         ((selectedCrease.type === "h" && (dir === "up" || dir === "down")) ||
@@ -878,6 +877,7 @@
     }
 
     function commitFold(crease) {
+      if (!foldValid(state?.points, crease) || isPlayback) return;
       history.push({ points: state.points.map((p) => ({ ...p })), moves: state.moves });
       state.points = applyFold(state.points, crease);
       state.moves += 1;
@@ -889,6 +889,7 @@
     }
 
     function resetPuzzle() {
+      if (!state) return;
       state.points = state.start.map((p) => ({ ...p }));
       state.moves = 0;
       history = [];
@@ -918,465 +919,106 @@
       return fmt.format(new Date());
     }
 
-    function hashStringToSeed(str) {
-      let hash = 2166136261;
-      for (let i = 0; i < str.length; i += 1) {
-        hash ^= str.charCodeAt(i);
-        hash = Math.imul(hash, 16777619);
-      }
-      return hash >>> 0;
-    }
-
-    function mulberry32(seed) {
-      return function () {
-        let t = (seed += 0x6d2b79f5);
-        t = Math.imul(t ^ (t >>> 15), t | 1);
-        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-      };
-    }
-
-    function randomInt(rng, min, max) {
-      return Math.floor(rng() * (max - min + 1)) + min;
-    }
-
-    function randomChoice(rng, items) {
-      return items[randomInt(rng, 0, items.length - 1)];
-    }
-
-    function pointsKey(points) {
-      return points
-        .map((p) => `${p.x},${p.y}`)
-        .sort()
-        .join("|");
-    }
-
-    function distinctCount(points) {
-      return new Set(points.map((p) => `${p.x},${p.y}`)).size;
-    }
-
-    function reflectPointForGen(p, crease) {
-      if (crease.type === "h") {
-        if (crease.dir === "down" && p.y <= crease.k) {
-          return { x: p.x, y: 2 * crease.k + 1 - p.y };
-        }
-        if (crease.dir === "up" && p.y >= crease.k + 1) {
-          return { x: p.x, y: 2 * crease.k + 1 - p.y };
-        }
-        return p;
-      }
-
-      if (crease.dir === "right" && p.x <= crease.k) {
-        return { x: 2 * crease.k + 1 - p.x, y: p.y };
-      }
-      if (crease.dir === "left" && p.x >= crease.k + 1) {
-        return { x: 2 * crease.k + 1 - p.x, y: p.y };
-      }
-      return p;
-    }
-
-    function applyFoldForGen(points, crease) {
-      let moved = false;
-      const next = points.map((p) => {
-        const rp = reflectPointForGen(p, crease);
-        if (rp.x !== p.x || rp.y !== p.y) moved = true;
-        if (rp.x < 1 || rp.x > SIZE || rp.y < 1 || rp.y > SIZE) return null;
-        return rp;
-      });
-      if (!moved) return null;
-      if (next.some((p) => p === null)) return null;
-      return next;
-    }
-
-    function allFolds() {
-      const folds = [];
-      for (let k = 1; k < SIZE; k += 1) {
-        folds.push({ type: "h", k, dir: "down" });
-        folds.push({ type: "h", k, dir: "up" });
-        folds.push({ type: "v", k, dir: "right" });
-        folds.push({ type: "v", k, dir: "left" });
-      }
-      return folds;
-    }
-
-    function findShortestPath(start, target, maxDepth) {
-      const targetKey = pointsKey(target);
-      const startKey = pointsKey(start);
-      if (startKey === targetKey) return [];
-
-      const folds = allFolds();
-      const visited = new Set([startKey]);
-      const queue = [{ points: start, path: [] }];
-      let idx = 0;
-
-      while (idx < queue.length) {
-        const { points, path } = queue[idx];
-        idx += 1;
-        if (path.length >= maxDepth) continue;
-
-        for (const fold of folds) {
-          const next = applyFoldForGen(points, fold);
-          if (!next) continue;
-          const key = pointsKey(next);
-          if (visited.has(key)) continue;
-          const nextPath = [...path, fold];
-          if (key === targetKey) return nextPath;
-          visited.add(key);
-          queue.push({ points: next, path: nextPath });
-        }
-      }
-      return null;
-    }
-
-    function randomPoints(rng, count) {
-      const points = [];
-      for (let i = 0; i < count; i += 1) {
-        points.push({ x: randomInt(rng, 1, SIZE), y: randomInt(rng, 1, SIZE) });
-      }
-      return points;
-    }
-
-    function randomPointsUnique(rng, count) {
-      const points = [];
-      const used = new Set();
-      while (points.length < count) {
-        const p = { x: randomInt(rng, 1, SIZE), y: randomInt(rng, 1, SIZE) };
-        const key = `${p.x},${p.y}`;
-        if (used.has(key)) continue;
-        used.add(key);
-        points.push(p);
-      }
-      return points;
-    }
-
-    function randomPointsForMeta(rng, meta) {
-      return meta.allowStack
-        ? randomPoints(rng, meta.dots)
-        : randomPointsUnique(rng, meta.dots);
-    }
-
-    function themeForDate(dateKey) {
-      const themes = [
-        "Headlines",
-        "Ticker",
-        "Dateline",
-        "Byline",
-        "Front Page",
-        "Crossword",
-        "Edition",
-        "Press",
-        "Column",
-        "Deadline",
-        "Dispatch",
-        "Scoop",
-        "Journal",
-        "Gazette",
-        "Courier",
-        "Ledger",
-        "Bulletin",
-        "Notebook",
-        "Newsroom",
-        "Spotlight",
-      ];
-      const rng = mulberry32(hashStringToSeed(`theme-${dateKey}`));
-      return randomChoice(rng, themes);
-    }
-
-    function formatDailyTitle(theme, label) {
-      return `${theme} ${label}`;
-    }
-
-    function buildRuthMessage(dateKey) {
-      const [year, month, day] = dateKey.split("-").map(Number);
-      const today = new Date(year, month - 1, day);
-      let birthdayYear = year;
-      const thisYearBday = new Date(year, 3, 29); // April 29
-      if (today > thisYearBday) birthdayYear = year + 1;
-      const birthday = new Date(birthdayYear, 3, 29);
-      const diffMs = birthday - today;
-      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-      if (diffDays === 0) return "Ruth, good job! Happy Birthday!";
-      if (diffDays === 1) return "Ruth, good job! Only 1 day until your birthday!";
-      return `Ruth, good job! ${diffDays} days until your birthday!`;
-    }
-
     function addRuthNote(puzzles, dateKey) {
-      const note = buildRuthMessage(dateKey);
       puzzles.forEach((puzzle) => {
         if (!puzzle) return;
-        puzzle.ruthNote = puzzle.difficulty === "medium" ? note : "";
+        const note = FoldMessages.buildNote(dateKey, puzzle.difficulty);
+        puzzle.ruthNote = note.message;
+        puzzle.noteHeading = note.heading;
+        puzzle.birthdayNote = note.birthdayMessage;
       });
       return puzzles;
     }
 
-    function generatePuzzle(rng, meta, dateKey) {
-      const folds = allFolds();
-      const maxAttempts = meta.maxAttempts || 1600;
-      const altAttempts = meta.altAttempts || 0;
+    const dailyMetas = FoldGenerator.metas;
+    const dailyKey = getDateKeyPST();
+    const cacheKey = `foldDaily-v3-${dailyKey}`;
+    let puzzleWorker = null;
+    let freshCounter = 0;
+    const pending = new Map();
 
-      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-        const target = randomPointsForMeta(rng, meta);
-        const targetDistinct = distinctCount(target);
-        if (!meta.allowStack && targetDistinct !== meta.dots) continue;
-        if (meta.allowStack && meta.dots > 1 && targetDistinct < 2) continue;
-        let start = target.map((p) => ({ ...p }));
-
-        for (let i = 0; i < meta.par; i += 1) {
-          const fold = folds[randomInt(rng, 0, folds.length - 1)];
-          const next = applyFoldForGen(start, fold);
-          if (!next) {
-            i -= 1;
-            continue;
-          }
-          start = next;
-        }
-
-        const startDistinct = distinctCount(start);
-        if (pointsKey(start) === pointsKey(target)) continue;
-        if (!meta.allowStack && startDistinct !== meta.dots) continue;
-        if (meta.allowStack && meta.dots > 1 && startDistinct < 2) continue;
-
-        const solution = findShortestPath(start, target, meta.par);
-        if (solution && solution.length === meta.par) {
-          const theme = themeForDate(dateKey);
-          return {
-            id: `${meta.difficulty}-${dateKey}`,
-            title: formatDailyTitle(theme, meta.label),
-            difficulty: meta.difficulty,
-            start,
-            target,
-            solution,
-          };
-        }
-      }
-
-      for (let attempt = 0; attempt < altAttempts; attempt += 1) {
-        const target = randomPointsForMeta(rng, meta);
-        const start = randomPointsForMeta(rng, meta);
-        if (pointsKey(start) === pointsKey(target)) continue;
-        const targetDistinct = distinctCount(target);
-        const startDistinct = distinctCount(start);
-        if (!meta.allowStack) {
-          if (targetDistinct !== meta.dots || startDistinct !== meta.dots) continue;
-        } else if (meta.dots > 1 && (targetDistinct < 2 || startDistinct < 2)) {
-          continue;
-        }
-
-        const solution = findShortestPath(start, target, meta.par);
-        if (solution && solution.length === meta.par) {
-          const theme = themeForDate(dateKey);
-          return {
-            id: `${meta.difficulty}-${dateKey}`,
-            title: formatDailyTitle(theme, meta.label),
-            difficulty: meta.difficulty,
-            start,
-            target,
-            solution,
-          };
-        }
-      }
+    function readDailyCache() {
+      try {
+        const list = JSON.parse(localStorage.getItem(cacheKey));
+        if (Array.isArray(list) && dailyMetas.every((meta, i) =>
+          list[i]?.difficulty === meta.difficulty && FoldGenerator.validPuzzle(list[i], meta))) return list;
+      } catch (_) { /* Storage is optional. */ }
       return null;
     }
 
-    function puzzleMatchesMeta(puzzle, meta) {
-      if (!puzzle) return false;
-      if (puzzle.solution.length !== meta.par) return false;
-      if (puzzle.start.length !== meta.dots || puzzle.target.length !== meta.dots) return false;
-      if (!meta.allowStack) {
-        if (distinctCount(puzzle.start) !== meta.dots) return false;
-        if (distinctCount(puzzle.target) !== meta.dots) return false;
-      }
-      return true;
+    function saveDailyCache() {
+      if (!dailyMetas.every((meta, i) => FoldGenerator.validPuzzle(puzzles[i], meta))) return;
+      try { localStorage.setItem(cacheKey, JSON.stringify(puzzles)); } catch (_) {}
     }
 
-    function loadCachedDaily(dateKey, metas) {
+    function acceptPuzzle(request, generated) {
+      const {meta, seed, kind, requestId} = request;
+      pending.delete(requestId);
+      const fallback = fallbackPuzzles.find(p => p.difficulty === meta.difficulty);
+      const puzzle = FoldGenerator.validPuzzle(generated, meta) ? generated : {...fallback, size: meta.size};
+      puzzle.title = `${kind === 'daily' ? 'Daily' : 'Practice'} ${meta.label}`;
+      addRuthNote([puzzle], dailyKey);
+      if (kind === 'daily') {
+        const index = dailyMetas.findIndex(m => m.difficulty === meta.difficulty);
+        puzzles[index] = puzzle;
+        puzzleById.set(puzzle.id, puzzle);
+        if (!state) newPuzzle(puzzle.id);
+        saveDailyCache();
+      } else {
+        // Practice replaces only the current board; the daily set stays available.
+        if (practiceId) puzzleById.delete(practiceId);
+        practiceId = puzzle.id;
+        puzzleById.set(puzzle.id, puzzle);
+        newPuzzle(puzzle.id);
+        freshBtn.textContent = 'Fresh puzzle';
+      }
+      updateAvailability();
+    }
+
+    function generateLocally(request) {
+      setTimeout(() => acceptPuzzle(request, FoldGenerator.generatePuzzle(request.meta, request.seed)), 0);
+    }
+
+    function startGenerator() {
       try {
-        const raw = localStorage.getItem(`foldDaily-${dateKey}`);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        if (!Array.isArray(parsed)) return null;
-        const byDifficulty = new Map(parsed.map((puzzle) => [puzzle.difficulty, puzzle]));
-        const cached = metas.map((meta) => {
-          const puzzle = byDifficulty.get(meta.difficulty);
-          return puzzleMatchesMeta(puzzle, meta) ? puzzle : null;
-        });
-        return cached.every(Boolean) ? cached : null;
-      } catch (err) {
-        return null;
-      }
-    }
-
-    function cacheDaily(dateKey, puzzlesToCache) {
-      try {
-        if (!Array.isArray(puzzlesToCache) || puzzlesToCache.some((p) => !p)) return;
-        localStorage.setItem(`foldDaily-${dateKey}`, JSON.stringify(puzzlesToCache));
-      } catch (err) {
-        // Ignore storage failures (private mode / quota).
-      }
-    }
-
-    const dailyMetas = [
-      { difficulty: "easy", label: "Easy", par: 3, dots: 2, allowStack: true, size: 6 },
-      { difficulty: "medium", label: "Medium", par: 4, dots: 3, allowStack: true, size: 6 },
-      {
-        difficulty: "hard",
-        label: "Hard",
-        par: 5,
-        dots: 4,
-        allowStack: false,
-        size: 6,
-        maxAttempts: 8000,
-        altAttempts: 4000,
-      },
-      {
-        difficulty: "large",
-        label: "Large",
-        par: 4,
-        dots: 3,
-        allowStack: true,
-        size: 8,
-        maxAttempts: 2000,
-      },
-    ];
-
-    function generateOnePuzzle(meta, dateKey, rng) {
-      setGridSize(meta.size || 6);
-      const tries = 10;
-      for (let i = 0; i < tries; i += 1) {
-        const localSeed = hashStringToSeed(`${dateKey}-${meta.difficulty}-${i}`);
-        const localRng = mulberry32(localSeed);
-        const puzzle = generatePuzzle(localRng, meta, dateKey);
-        if (puzzleMatchesMeta(puzzle, meta)) {
-          puzzle.size = meta.size || 6;
-          return puzzle;
-        }
-      }
-      const fallbackPuzzle = generatePuzzle(rng, meta, dateKey);
-      if (puzzleMatchesMeta(fallbackPuzzle, meta)) {
-        fallbackPuzzle.size = meta.size || 6;
-        return fallbackPuzzle;
-      }
-      return null;
-    }
-
-    function generateDailyPuzzles(fallback) {
-      const dateKey = getDateKeyPST();
-      const rng = mulberry32(hashStringToSeed(dateKey));
-
-      const cached = loadCachedDaily(dateKey, dailyMetas);
-      if (cached) return addRuthNote(cached, dateKey);
-
-      const daily = dailyMetas.map((meta) => generateOnePuzzle(meta, dateKey, rng));
-      const missing = daily.some((puzzle) => !puzzle);
-      if (!missing) {
-        cacheDaily(dateKey, daily);
-        return addRuthNote(daily, dateKey);
-      }
-
-      const fallbackByDifficulty = new Map(
-        fallback.map((puzzle) => [puzzle.difficulty, puzzle])
-      );
-      const finalSet = dailyMetas.map((meta, idx) => daily[idx] || fallbackByDifficulty.get(meta.difficulty));
-      cacheDaily(dateKey, finalSet);
-      return addRuthNote(finalSet, dateKey);
-    }
-
-    function generateDailyPuzzlesProgressive(fallback, onReady) {
-      const dateKey = getDateKeyPST();
-      const rng = mulberry32(hashStringToSeed(dateKey));
-
-      const cached = loadCachedDaily(dateKey, dailyMetas);
-      if (cached) {
-        const result = addRuthNote(cached, dateKey);
-        onReady(result);
-        return result;
-      }
-
-      const fallbackByDifficulty = new Map(
-        fallback.map((puzzle) => [puzzle.difficulty, puzzle])
-      );
-      const daily = [];
-
-      // Generate easy synchronously (fast — par 3, 1600 attempts max)
-      const easyMeta = dailyMetas[0];
-      const easyPuzzle = generateOnePuzzle(easyMeta, dateKey, rng) || fallbackByDifficulty.get("easy");
-      daily.push(easyPuzzle);
-      addRuthNote(daily, dateKey);
-      onReady(daily);
-
-      // Generate remaining puzzles off the main thread using a Blob Worker
-      const workerFns = [
-        randomInt, randomChoice, mulberry32, hashStringToSeed,
-        reflectPointForGen, applyFoldForGen, pointsKey, distinctCount,
-        allFolds, findShortestPath, randomPoints, randomPointsUnique,
-        randomPointsForMeta, themeForDate, formatDailyTitle,
-        generatePuzzle, puzzleMatchesMeta, generateOnePuzzle, setGridSize,
-      ].map((fn) => fn.toString()).join("\n");
-
-      const workerBody = `
-        let SIZE = 6, CELL = 70, BOARD = 420;
-        ${workerFns}
-        self.onmessage = function(e) {
-          const { metas, dateKey } = e.data;
-          for (const meta of metas) {
-            const localSeed = hashStringToSeed(dateKey + "-worker-" + meta.difficulty);
-            const rng = mulberry32(localSeed);
-            const puzzle = generateOnePuzzle(meta, dateKey, rng);
-            self.postMessage({ difficulty: meta.difficulty, puzzle });
-          }
+        puzzleWorker = new Worker('puzzle-worker.js');
+        puzzleWorker.onmessage = ({data}) => {
+          const request = pending.get(data.requestId);
+          if (request) acceptPuzzle(request, data.puzzle);
         };
-      `;
-      const blob = new Blob([workerBody], { type: "application/javascript" });
-      const workerUrl = URL.createObjectURL(blob);
-      const worker = new Worker(workerUrl);
+        puzzleWorker.onerror = () => {
+          puzzleWorker.terminate();
+          puzzleWorker = null;
+          for (const request of pending.values()) generateLocally(request);
+        };
+      } catch (_) { puzzleWorker = null; }
+    }
 
-      const remainingMetas = dailyMetas.slice(1);
-      let received = 0;
+    function requestPuzzle(meta, seed, kind) {
+      const requestId = `${kind}-${meta.difficulty}-${seed}`;
+      const request = {requestId, meta, seed, kind};
+      pending.set(requestId, request);
+      if (puzzleWorker) puzzleWorker.postMessage(request);
+      else generateLocally(request);
+    }
 
-      worker.onmessage = function(e) {
-        const { difficulty, puzzle } = e.data;
-        const meta = remainingMetas.find((m) => m.difficulty === difficulty);
-        const idx = dailyMetas.findIndex((m) => m.difficulty === difficulty);
-        const resolved = puzzle && puzzleMatchesMeta(puzzle, meta)
-          ? Object.assign(puzzle, { size: meta.size || 6 })
-          : fallbackByDifficulty.get(difficulty);
-        daily[idx] = resolved;
-        addRuthNote(daily, dateKey);
-        onReady(daily);
-        received += 1;
-        if (received >= remainingMetas.length) {
-          if (daily.every(Boolean)) cacheDaily(dateKey, daily);
-          worker.terminate();
-          URL.revokeObjectURL(workerUrl);
-        }
-      };
+    function updateAvailability() {
+      const busy = [...pending.values()].some(request => request.kind === 'practice');
+      dailyMetas.forEach((meta, i) => {
+        document.getElementById(`${meta.difficulty}Btn`).disabled = isPlayback || busy || !puzzles[i];
+      });
+      freshBtn.disabled = !state || isPlayback || busy;
+      dailyBtn.disabled = !state || isPlayback || busy;
+      const ready = puzzles.filter(Boolean).length;
+      document.getElementById('loadingStatus').textContent = ready === dailyMetas.length ? `All ${dailyMetas.length} daily puzzles are ready.` : `Preparing daily puzzles · ${ready} of ${dailyMetas.length} ready`;
+    }
 
-      worker.onerror = function() {
-        // Worker failed (e.g. CSP restriction) — fall back to setTimeout
-        worker.terminate();
-        URL.revokeObjectURL(workerUrl);
-        let metaIdx = 1;
-        function generateNext() {
-          if (metaIdx >= dailyMetas.length) {
-            if (daily.every(Boolean)) cacheDaily(dateKey, daily);
-            return;
-          }
-          const meta = dailyMetas[metaIdx];
-          const puzzle = generateOnePuzzle(meta, dateKey, rng) || fallbackByDifficulty.get(meta.difficulty);
-          daily.push(puzzle);
-          addRuthNote(daily, dateKey);
-          onReady(daily);
-          metaIdx += 1;
-          setTimeout(generateNext, 0);
-        }
-        setTimeout(generateNext, 0);
-      };
-
-      // Pre-fill array slots so indices match dailyMetas
-      while (daily.length < dailyMetas.length) daily.push(null);
-      worker.postMessage({ metas: remainingMetas, dateKey });
-
-      return daily;
+    function freshPuzzle() {
+      if (freshBtn.disabled) return;
+      const meta = dailyMetas.find(m => m.difficulty === difficulty);
+      freshBtn.textContent = 'Folding…';
+      requestPuzzle(meta, `${dailyKey}-practice-${Date.now()}-${++freshCounter}`, 'practice');
+      updateAvailability();
     }
 
     function watchForNewDay() {
@@ -1391,6 +1033,7 @@
     }
 
     const fallbackPuzzles = [
+      {"id":"limited-fallback","title":"Archive Limited Creases","difficulty":"limited","size":6,"start":[{"x":3,"y":2},{"x":2,"y":3},{"x":2,"y":4}],"target":[{"x":6,"y":5},{"x":6,"y":6},{"x":6,"y":6}],"solution":[{"type":"h","k":2,"dir":"down"},{"type":"h","k":4,"dir":"down"},{"type":"v","k":2,"dir":"right"},{"type":"v","k":4,"dir":"right"}],"allowedCreases":[{"type":"h","k":2},{"type":"h","k":4},{"type":"v","k":4},{"type":"v","k":2}]},
       {
         id: "easy-fallback",
         title: "Archive Easy",
@@ -1481,29 +1124,24 @@
       },
     ];
 
-    let puzzles = [];
+    let puzzles = new Array(dailyMetas.length).fill(null);
+    let practiceId = null;
     const puzzleById = new Map();
 
-    function updatePuzzleIndex(list) {
-      puzzles = list;
-      puzzleById.clear();
-      list.forEach((p) => { if (p) puzzleById.set(p.id, p); });
-    }
-
-    generateDailyPuzzlesProgressive(fallbackPuzzles, (list) => {
-      const isFirst = puzzles.length === 0;
-      updatePuzzleIndex(list);
-      if (isFirst) {
-        newPuzzle();
-        initRules();
+    function initializePuzzles() {
+      startGenerator();
+      const cached = readDailyCache();
+      if (cached) {
+        puzzles = addRuthNote(cached, dailyKey);
+        puzzles.forEach(p => puzzleById.set(p.id, p));
+        newPuzzle(puzzles[0].id);
+      } else {
+        dailyMetas.forEach(meta => requestPuzzle(meta, dailyKey, 'daily'));
       }
-      // Update difficulty buttons availability
-      easyBtn.disabled = !puzzleById.has(list[0]?.id);
-      mediumBtn.disabled = list.length < 2 || !list[1];
-      hardBtn.disabled = list.length < 3 || !list[2];
-      largeBtn.disabled = list.length < 4 || !list[3];
-    });
-    watchForNewDay();
+      updateAvailability();
+      initRules();
+      watchForNewDay();
+    }
 
     function buildPuzzle(puzzleId) {
       const def = puzzleById.get(puzzleId) || puzzles[0];
@@ -1516,6 +1154,9 @@
         par: def.solution.length,
         solution: def.solution.map((fold) => ({ ...fold })),
         ruthNote: def.ruthNote || "",
+        noteHeading: def.noteHeading,
+        birthdayNote: def.birthdayNote || "",
+        allowedCreases: def.allowedCreases?.map(c => ({...c})),
       };
     }
 
@@ -1600,9 +1241,10 @@
     function setPlaybackMode(on) {
       isPlayback = on;
       playSolutionBtn.textContent = on ? "Stop" : "Auto play";
-      [resetBtn, undoBtn, rulesBtn, easyBtn, mediumBtn, hardBtn, largeBtn].forEach((el) => {
+      [resetBtn, undoBtn, rulesBtn, easyBtn, mediumBtn, hardBtn, largeBtn, limitedBtn, freshBtn, dailyBtn].forEach((el) => {
         el.disabled = on;
       });
+      updateAvailability();
       if (on) {
         selectedCrease = null;
         previewPoints = null;
@@ -1634,6 +1276,8 @@
     }
 
     function stopPlayback(restore = true) {
+      clearTimeout(playbackEndTimer);
+      playbackEndTimer = null;
       if (playbackTimer) {
         clearInterval(playbackTimer);
         playbackTimer = null;
@@ -1680,32 +1324,25 @@
       renderBoard();
       updateStatus();
       if (playbackIndex >= state.solution.length) {
-        setTimeout(() => stopPlayback(true), 800);
+        clearInterval(playbackTimer);
+        playbackTimer = null;
+        clearTimeout(playbackEndTimer);
+        playbackEndTimer = setTimeout(() => stopPlayback(true), 800);
       }
     }
 
     function startAutoPlayback() {
-      if (isPlayback && playbackTimer) {
+      if (isPlayback) {
         stopPlayback(true);
         return;
       }
       beginPlaybackSession();
-      if (playbackTimer) {
-        clearInterval(playbackTimer);
-      }
-      playbackTimer = setInterval(() => {
-        if (playbackIndex >= state.solution.length) {
-          clearInterval(playbackTimer);
-          playbackTimer = null;
-          setTimeout(() => stopPlayback(true), 800);
-          return;
-        }
-        advancePlayback();
-      }, 950);
+      playbackTimer = setInterval(advancePlayback, 950);
     }
 
     function setSolutionOpen(open) {
       solutionOpen = open;
+      solutionToggle.setAttribute("aria-expanded", String(open));
       if (solutionOpen) {
         solutionContent.classList.add("show");
         solutionHint.textContent = "Tap to hide";
@@ -1716,6 +1353,7 @@
     }
 
     function newPuzzle(puzzleId = puzzles[0].id) {
+      closeWin();
       const puzzle = buildPuzzle(puzzleId);
       setGridSize(puzzle.size);
       difficulty = puzzle.difficulty;
@@ -1729,16 +1367,16 @@
         moves: 0,
         solution: puzzle.solution,
         ruthNote: puzzle.ruthNote,
+        noteHeading: puzzle.noteHeading,
+        birthdayNote: puzzle.birthdayNote,
+        allowedCreases: puzzle.allowedCreases,
       };
+      const creaseHint = document.getElementById('creaseHint');
+      creaseHint.hidden = !state.allowedCreases;
+      creaseHint.textContent = state.allowedCreases ? 'Only the four highlighted creases can fold. Choose your route.' : '';
+      board.classList.toggle('limited-board', !!state.allowedCreases);
       parEl.textContent = state.par;
       puzzleTitleEl.textContent = state.title;
-      puzzleTitleEl.dataset.ruthNote = state.ruthNote || "";
-      if (winRuthNoteEl) {
-        winRuthNoteEl.textContent = state.ruthNote || "";
-      }
-      if (winRuthNoteWrapEl) {
-        winRuthNoteWrapEl.style.display = state.ruthNote ? "" : "none";
-      }
       history = [];
       winShown = false;
       setSolutionOpen(false);
@@ -1753,7 +1391,7 @@
 
     function bindEvents() {
       board.addEventListener("click", (event) => {
-        if (isPlayback) return;
+        if (!state || isPlayback) return;
         const target = event.target;
         if (!target.classList.contains("crease-hit")) return;
         const crease = {
@@ -1763,23 +1401,35 @@
         showDirections(crease);
       });
 
+      freshBtn.addEventListener("click", freshPuzzle);
+      dailyBtn.addEventListener("click", () => setDifficulty(difficulty));
+      board.addEventListener('keydown', event => {
+        if (!state || isPlayback || !event.target.classList.contains('crease-hit')) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          showDirections({type:event.target.dataset.type, k:Number(event.target.dataset.k)});
+          (dirA.disabled ? dirB : dirA).focus();
+        }
+      });
       resetBtn.addEventListener("click", () => resetPuzzle());
       undoBtn.addEventListener("click", () => undoMove());
       rulesBtn.addEventListener("click", () => openRules());
       easyBtn.addEventListener("click", () => setDifficulty("easy"));
       mediumBtn.addEventListener("click", () => setDifficulty("medium"));
       hardBtn.addEventListener("click", () => setDifficulty("hard"));
+      limitedBtn.addEventListener("click", () => setDifficulty("limited"));
       largeBtn.addEventListener("click", () => setDifficulty("large"));
       solutionToggle.addEventListener("click", () => setSolutionOpen(!solutionOpen));
       stepSolutionBtn.addEventListener("click", () => {
+        if (!state) return;
         beginPlaybackSession();
         advancePlayback();
       });
-      playSolutionBtn.addEventListener("click", () => startAutoPlayback());
+      playSolutionBtn.addEventListener("click", () => { if (state) startAutoPlayback(); });
 
       startBtn.addEventListener("click", () => {
         if (hideRules.checked) {
-          localStorage.setItem("foldHideRules", "1");
+          try { localStorage.setItem("foldHideRules", "1"); } catch (_) {}
         }
         closeRules();
       });
@@ -1787,7 +1437,7 @@
       closeWinBtn.addEventListener("click", () => closeWin());
 
       window.addEventListener("keydown", (event) => {
-        if (rulesModal.classList.contains("show")) return;
+        if (!state || rulesModal.classList.contains("show") || winModal.classList.contains("show")) return;
         const key = event.key;
         if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(key)) return;
         event.preventDefault();
@@ -1807,12 +1457,11 @@
     }
 
     function openWin() {
-      if (winRuthNoteEl) {
-        winRuthNoteEl.textContent = state?.ruthNote || "";
-      }
-      if (winRuthNoteWrapEl) {
-        winRuthNoteWrapEl.style.display = state?.ruthNote ? "" : "none";
-      }
+      winHeadingEl.textContent = state.noteHeading;
+      winRuthNoteEl.textContent = state.ruthNote;
+      winRuthNoteWrapEl.classList.toggle('poem', state.ruthNote.includes('\n'));
+      winBirthdayNoteEl.textContent = state.birthdayNote;
+      winBirthdayNoteEl.hidden = !state.birthdayNote;
       winModal.classList.add("show");
     }
 
@@ -1821,28 +1470,35 @@
     }
 
     function initRules() {
-      const hide = localStorage.getItem("foldHideRules") === "1";
+      let hide = false;
+      try { hide = localStorage.getItem("foldHideRules") === "1"; } catch (_) {}
       if (!hide) {
         openRules();
       }
     }
 
     function setDifficulty(level) {
-      const next = puzzles.find((puzzle) => puzzle.difficulty === level);
+      const next = puzzles.find((puzzle) => puzzle?.difficulty === level);
       if (!next) return;
       newPuzzle(next.id);
     }
 
     function setDifficultyButtons(level) {
-      const buttons = [easyBtn, mediumBtn, hardBtn, largeBtn];
-      buttons.forEach((btn) => btn.classList.remove("active"));
+      const buttons = [easyBtn, mediumBtn, hardBtn, largeBtn, limitedBtn];
+      buttons.forEach((btn) => {
+        btn.classList.remove("active");
+        btn.setAttribute("aria-pressed", String(btn.id === `${level}Btn`));
+      });
       if (level === "easy") easyBtn.classList.add("active");
       if (level === "medium") mediumBtn.classList.add("active");
       if (level === "hard") hardBtn.classList.add("active");
       if (level === "large") largeBtn.classList.add("active");
+      if (level === "limited") limitedBtn.classList.add("active");
     }
 
     bindEvents();
+    document.getElementById('editionDate').textContent = new Intl.DateTimeFormat('en-US', {timeZone: 'America/Los_Angeles', month:'long', day:'numeric', year:'numeric'}).format(new Date());
+    initializePuzzles();
   </script>
 </body>
 </html>
